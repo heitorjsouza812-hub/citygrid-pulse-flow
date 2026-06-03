@@ -21,30 +21,43 @@ export function Header() {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-border" style={{ backgroundColor: "color-mix(in oklab, var(--background) 80%, transparent)" }}>
+    <header
+      className="sticky top-0 z-40 backdrop-blur-xl border-b border-border"
+      style={{ backgroundColor: "color-mix(in oklab, var(--background) 82%, transparent)" }}
+    >
+      {/* hairline accent */}
+      <div className="absolute inset-x-0 bottom-0 h-px opacity-60" style={{ background: "var(--gradient-accent)" }} />
+
       <div className="mx-auto max-w-[1600px] px-4 lg:px-6 py-3 flex items-center gap-4 flex-wrap">
-        <Link to="/" className="flex items-center gap-3 mr-2">
-          <div className="relative h-9 w-9 rounded-lg flex items-center justify-center"
-            style={{ background: "var(--gradient-accent)", boxShadow: "0 0 20px color-mix(in oklab, var(--cyan-elec) 50%, transparent)" }}>
-            <Zap className="h-5 w-5 text-background" strokeWidth={2.5} />
+        <Link to="/" className="flex items-center gap-2.5 mr-2 group">
+          <div
+            className="relative h-9 w-9 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105"
+            style={{ background: "var(--gradient-accent)", boxShadow: "0 0 24px color-mix(in oklab, var(--cyan-elec) 45%, transparent)" }}
+          >
+            <Zap className="h-5 w-5 text-background" strokeWidth={2.75} />
           </div>
           <div className="leading-tight">
-            <div className="font-display font-extrabold text-base tracking-tight">CityGrid <span className="gradient-text">Brain</span></div>
-            <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-mono">Smart City Energy Monitor</div>
+            <div className="font-display font-extrabold text-[15px] tracking-tight uppercase">
+              CityGrid <span className="gradient-text">Brain</span>
+            </div>
+            <div className="text-[9px] uppercase tracking-[0.22em] text-muted-foreground font-mono">
+              Utility OS · v4.2
+            </div>
           </div>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1 ml-2">
           {links.map((l) => {
             const active = l.to === "/" ? pathname === "/" : pathname.startsWith(l.to);
             return (
               <Link
                 key={l.to}
                 to={l.to}
-                className="px-3 py-1.5 rounded-md text-xs font-display font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1.5 rounded-md text-[11px] font-display font-bold uppercase tracking-[0.12em] flex items-center gap-1.5 transition-colors"
                 style={{
                   color: active ? "var(--cyan-elec)" : "var(--muted-foreground)",
                   backgroundColor: active ? "color-mix(in oklab, var(--cyan-elec) 10%, transparent)" : "transparent",
+                  border: active ? "1px solid color-mix(in oklab, var(--cyan-elec) 25%, transparent)" : "1px solid transparent",
                 }}
               >
                 <l.icon className="h-3.5 w-3.5" /> {l.label}
@@ -54,13 +67,14 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3 ml-auto">
-          <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            <span className="text-primary">CICLO</span>
-            <span className="text-foreground font-bold">#{STATS_MOCK.ciclo}</span>
-          </span>
-          <span className="hidden sm:inline font-mono text-xs text-foreground tabular-nums" suppressHydrationWarning>
-            {now ? now.toLocaleTimeString("pt-BR") : "--:--:--"}
-          </span>
+          <div className="hidden md:flex flex-col items-end leading-tight">
+            <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+              Ciclo <span className="text-foreground font-bold">#{STATS_MOCK.ciclo}</span>
+            </span>
+            <span className="font-mono text-[11px] text-foreground tabular-nums" suppressHydrationWarning>
+              {now ? now.toLocaleTimeString("pt-BR") : "--:--:--"}
+            </span>
+          </div>
           <StatusWebSocket status="conectado" />
         </div>
       </div>
