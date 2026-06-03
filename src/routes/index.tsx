@@ -104,17 +104,16 @@ function PainelClima() {
   ];
   return (
     <div className="card-surface p-4">
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--gradient-accent)" }} />
-      <h3 className="font-display font-extrabold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
-        <ThermometerSun className="h-4 w-4 text-primary" /> Clima Atual
+      <h3 className="font-display font-semibold text-[12px] uppercase tracking-[0.14em] text-muted-foreground mb-3 flex items-center gap-2">
+        <ThermometerSun className="h-3.5 w-3.5" /> Condições Climáticas
       </h3>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         {items.map((i) => (
-          <div key={i.label} className="rounded-md border border-border bg-surface/40 p-2">
+          <div key={i.label} className="rounded-sm border border-border bg-surface/40 p-2">
             <div className="text-[9px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
               {i.icon} {i.label}
             </div>
-            <div className="font-mono text-base font-bold mt-0.5">
+            <div className="font-mono text-sm font-semibold mt-0.5 tabular-nums">
               {i.val}<span className="text-[10px] text-muted-foreground ml-1">{i.u}</span>
             </div>
           </div>
@@ -130,29 +129,28 @@ function PainelRenovavel() {
   const eolica = ZONAS_MOCK.reduce((a, z) => a + z.eolica_mw, 0);
   return (
     <div className="card-surface p-4">
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--gradient-green)" }} />
-      <h3 className="font-display font-extrabold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
-        <Leaf className="h-4 w-4" style={{ color: "var(--risk-low)" }} /> Energia Renovável
+      <h3 className="font-display font-semibold text-[12px] uppercase tracking-[0.14em] text-muted-foreground mb-3 flex items-center gap-2">
+        <Leaf className="h-3.5 w-3.5" /> Geração Renovável
       </h3>
-      <div className="text-center py-2">
-        <div className="font-mono text-5xl font-bold" style={{ color: "var(--risk-low)" }}>
-          {s.renovavel_pct.toFixed(1)}<span className="text-2xl text-muted-foreground">%</span>
+      <div className="py-1">
+        <div className="font-mono text-3xl font-semibold tabular-nums" style={{ color: "var(--risk-low)" }}>
+          {s.renovavel_pct.toFixed(1)}<span className="text-lg text-muted-foreground ml-1">%</span>
         </div>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1 font-mono">
-          {s.renovavel_mw.toFixed(2)} MW do total
+          {s.renovavel_mw.toFixed(2)} MW da geração total
         </div>
       </div>
-      <div className="h-2 w-full rounded-full bg-surface overflow-hidden border border-border mt-2">
-        <div className="h-full transition-[width] duration-500" style={{ width: `${Math.min(100, s.renovavel_pct)}%`, background: "var(--gradient-green)", boxShadow: "0 0 12px var(--risk-low)" }} />
+      <div className="h-1 w-full bg-surface overflow-hidden rounded-sm mt-3 border border-border">
+        <div className="h-full" style={{ width: `${Math.min(100, s.renovavel_pct)}%`, backgroundColor: "var(--risk-low)" }} />
       </div>
-      <div className="grid grid-cols-2 gap-2 mt-3">
-        <div className="rounded-md border border-border bg-surface/40 p-2">
+      <div className="grid grid-cols-2 gap-1.5 mt-3">
+        <div className="rounded-sm border border-border bg-surface/40 p-2">
           <div className="text-[9px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Sun className="h-3 w-3" /> Solar</div>
-          <div className="font-mono text-base font-bold mt-0.5">{solar.toFixed(2)}<span className="text-[10px] text-muted-foreground ml-1">MW</span></div>
+          <div className="font-mono text-sm font-semibold mt-0.5 tabular-nums">{solar.toFixed(2)}<span className="text-[10px] text-muted-foreground ml-1">MW</span></div>
         </div>
-        <div className="rounded-md border border-border bg-surface/40 p-2">
+        <div className="rounded-sm border border-border bg-surface/40 p-2">
           <div className="text-[9px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Wind className="h-3 w-3" /> Eólica</div>
-          <div className="font-mono text-base font-bold mt-0.5">{eolica.toFixed(2)}<span className="text-[10px] text-muted-foreground ml-1">MW</span></div>
+          <div className="font-mono text-sm font-semibold mt-0.5 tabular-nums">{eolica.toFixed(2)}<span className="text-[10px] text-muted-foreground ml-1">MW</span></div>
         </div>
       </div>
     </div>
@@ -162,9 +160,8 @@ function PainelRenovavel() {
 function PainelAlertas() {
   return (
     <div className="card-surface p-4">
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--gradient-accent)" }} />
-      <h3 className="font-display font-extrabold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
-        <Bot className="h-4 w-4 text-primary" /> Feed de Ações da IA
+      <h3 className="font-display font-semibold text-[12px] uppercase tracking-[0.14em] text-muted-foreground mb-3 flex items-center gap-2">
+        <Bot className="h-3.5 w-3.5" /> Eventos do Sistema
       </h3>
       <FeedAlertas alertas={ALERTAS_MOCK} maxHeight="28rem" />
     </div>
