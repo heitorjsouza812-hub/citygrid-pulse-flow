@@ -40,7 +40,7 @@ export function FeedAlertas({ alertas, maxHeight = "32rem" }: { alertas: Alerta[
                   </span>
                   <span className="text-[10px] text-muted-foreground truncate font-mono">{a.zona_nome}</span>
                 </div>
-                <span className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">{timeAgo(a.ts)}</span>
+                <span className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">{agoLabel(a.min_ago)}</span>
               </div>
               <div className="text-[13px] font-display font-bold text-foreground leading-tight">{a.tipo}</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">{a.descricao}</div>
