@@ -23,18 +23,14 @@ export function CardZona({ zona, compact = false }: { zona: Zona; compact?: bool
     <Link
       to="/zona/$id"
       params={{ id: zona.zona_id }}
-      className={`card-surface group block p-4 pl-[14px] transition-all duration-200 hover:-translate-y-0.5 ${isCrit ? "animate-pulse-crit" : "hover:shadow-[var(--shadow-glow-cyan)]"}`}
-      style={isCrit ? { backgroundColor: "color-mix(in oklab, var(--risk-crit) 5%, var(--card))" } : undefined}
+      className={`card-surface group block p-3.5 pl-[13px] transition-colors hover:border-[color-mix(in_oklab,var(--primary)_45%,var(--border))] ${isCrit ? "animate-pulse-crit" : ""}`}
     >
       {/* Left risk rail */}
-      <div
-        className="absolute inset-y-0 left-0 w-[3px]"
-        style={{ background: railColor, boxShadow: `0 0 12px ${railColor}` }}
-      />
+      <div className="absolute inset-y-0 left-0 w-[2px]" style={{ backgroundColor: railColor }} />
 
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="min-w-0">
-          <h3 className="font-display font-bold text-[15px] leading-tight truncate">{zona.zona_nome}</h3>
+          <h3 className="font-display font-semibold text-[14px] leading-tight truncate text-foreground">{zona.zona_nome}</h3>
           <p className="text-[9px] uppercase tracking-[0.22em] text-muted-foreground mt-1 font-mono">
             {perfilLabel[zona.perfil] ?? zona.perfil}
           </p>
