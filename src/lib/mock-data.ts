@@ -1,3 +1,9 @@
+// Stable base instant — keeps SSR and client renders identical.
+const BASE_TS = Date.parse("2026-06-03T18:00:00Z");
+function nowMinus(min: number) {
+  return new Date(BASE_TS - min * 60_000).toISOString();
+}
+
 export type Risco = "BAIXO" | "MÉDIO" | "ALTO" | "CRÍTICO";
 export type BatModo = "CARREGANDO" | "STANDBY" | "DESCARGANDO";
 export type Perfil = "residencial" | "comercial" | "industrial" | "misto" | "hospitalar" | "turístico";
@@ -203,11 +209,7 @@ export const STATS_MOCK: Stats = {
 };
 STATS_MOCK.renovavel_pct = (STATS_MOCK.renovavel_mw / STATS_MOCK.consumo_total_mw) * 100;
 
-// Stable base instant — keeps SSR and client renders identical.
-const BASE_TS = Date.parse("2026-06-03T18:00:00Z");
-function nowMinus(min: number) {
-  return new Date(BASE_TS - min * 60_000).toISOString();
-}
+
 
 // Substations and transformers — operational fleet data
 export interface Subestacao {
