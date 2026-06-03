@@ -58,8 +58,8 @@ export function Header() {
             <span className="text-primary">CICLO</span>
             <span className="text-foreground font-bold">#{STATS_MOCK.ciclo}</span>
           </span>
-          <span className="hidden sm:inline font-mono text-xs text-foreground tabular-nums">
-            {now.toLocaleTimeString("pt-BR")}
+          <span className="hidden sm:inline font-mono text-xs text-foreground tabular-nums" suppressHydrationWarning>
+            {now ? now.toLocaleTimeString("pt-BR") : "--:--:--"}
           </span>
           <StatusWebSocket status="conectado" />
         </div>
