@@ -1,3 +1,9 @@
+// Stable base instant — keeps SSR and client renders identical.
+const BASE_TS = Date.parse("2026-06-03T18:00:00Z");
+function nowMinus(min: number) {
+  return new Date(BASE_TS - min * 60_000).toISOString();
+}
+
 export type Risco = "BAIXO" | "MÉDIO" | "ALTO" | "CRÍTICO";
 export type BatModo = "CARREGANDO" | "STANDBY" | "DESCARGANDO";
 export type Perfil = "residencial" | "comercial" | "industrial" | "misto" | "hospitalar" | "turístico";
