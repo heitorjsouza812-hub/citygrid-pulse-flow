@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export function MetricaCard({
-  icon, label, valor, unidade, sub, color = "var(--cyan-elec)", gradient = false, pct,
+  icon, label, valor, unidade, sub, color, pct,
 }: {
   icon: ReactNode;
   label: string;
@@ -12,29 +12,23 @@ export function MetricaCard({
   gradient?: boolean;
   pct?: number;
 }) {
+  const accent = color ?? "var(--foreground)";
   return (
-    <div className="card-surface p-4 relative group transition-colors hover:border-[color-mix(in_oklab,var(--cyan-elec)_30%,var(--border))]">
-      <div
-        className="absolute inset-x-0 top-0 h-px opacity-80"
-        style={{ background: gradient ? "var(--gradient-green)" : "var(--gradient-accent)" }}
-      />
-      <div className="flex items-center justify-between mb-2.5">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-display font-bold">{label}</span>
-        <span style={{ color }} className="opacity-70">{icon}</span>
+    <div className="card-surface p-3.5">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-mono">{label}</span>
+        <span className="text-muted-foreground opacity-80">{icon}</span>
       </div>
-      <div className="font-mono text-[28px] leading-none font-bold tabular-nums tracking-tight transition-colors" style={{ color }}>
+      <div className="font-mono text-[24px] leading-none font-semibold tabular-nums tracking-tight" style={{ color: accent }}>
         {valor}
         {unidade && <span className="text-sm text-muted-foreground ml-1.5 font-normal">{unidade}</span>}
       </div>
       {typeof pct === "number" && (
-        <div className="mt-2.5 h-[3px] w-full rounded-full bg-surface/80 overflow-hidden">
-          <div
-            className="h-full rounded-full"
-            style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: color, boxShadow: `0 0 8px ${color}` }}
-          />
+        <div className="mt-2.5 h-1 w-full bg-surface overflow-hidden rounded-sm">
+          <div className="h-full" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, backgroundColor: accent }} />
         </div>
       )}
-      {sub && <div className="text-[11px] text-muted-foreground mt-2 font-mono tracking-tight">{sub}</div>}
+      {sub && <div className="text-[11px] text-muted-foreground mt-2 font-mono">{sub}</div>}
     </div>
   );
 }
