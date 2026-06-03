@@ -18,35 +18,51 @@ function timeAgo(iso: string) {
 
 export function FeedAlertas({ alertas, maxHeight = "32rem" }: { alertas: Alerta[]; maxHeight?: string }) {
   return (
-    <div className="overflow-y-auto pr-1 space-y-2" style={{ maxHeight }}>
-      {alertas.map((a) => {
-        const color = urgenciaColor(a.urgencia);
-        return (
-          <div
-            key={a.id}
-            className="animate-slide-in-up rounded-md border border-border bg-surface/40 p-2.5"
-            style={{ borderLeft: `3px solid ${color}` }}
-          >
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[10px] font-mono uppercase tracking-wider font-bold" style={{ color }}>
-                  {a.urgencia}
-                </span>
-                <span className="text-[10px] text-muted-foreground truncate">• {a.zona_nome}</span>
+    <div className="overflow-y-auto pr-1 -mr-1" style={{ maxHeight }}>
+      <div className="divide-y divide-border/60 rounded-md overflow-hidden border border-border/60 bg-surface/20">
+        {alertas.map((a) => {
+          const color = urgenciaColor(a.urgencia);
+          return (
+            <div
+              key={a.id}
+              className="animate-slide-in-up p-3 hover:bg-surface/50 transition-colors relative"
+              style={{ boxShadow: `inset 3px 0 0 0 ${color}` }}
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="text-[9px] font-mono uppercase tracking-[0.15em] font-bold px-1.5 py-0.5 rounded"
+                    style={{
+                      color,
+                      backgroundColor: `color-mix(in oklab, ${color} 14%, transparent)`,
+                    }}
+                  >
+                    {a.urgencia}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground truncate font-mono">{a.zona_nome}</span>
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">{timeAgo(a.ts)}</span>
               </div>
-              <span className="text-[10px] font-mono text-muted-foreground shrink-0">{timeAgo(a.ts)}</span>
+              <div className="text-[13px] font-display font-bold text-foreground leading-tight">{a.tipo}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">{a.descricao}</div>
+              <div className="flex items-center justify-between mt-2 text-[10px] font-mono">
+                <span className="inline-flex items-center gap-1 uppercase tracking-[0.15em] text-muted-foreground">
+                  {origemIcon[a.origem]} {a.origem}
+                </span>
+                <span
+                  className="px-1.5 py-0.5 rounded tabular-nums"
+                  style={{
+                    color: "var(--risk-low)",
+                    backgroundColor: "color-mix(in oklab, var(--risk-low) 10%, transparent)",
+                  }}
+                >
+                  conf {(a.confianca * 100).toFixed(0)}%
+                </span>
+              </div>
             </div>
-            <div className="text-xs font-display font-bold text-foreground">{a.tipo}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">{a.descricao}</div>
-            <div className="flex items-center justify-between mt-1.5 text-[10px] font-mono text-muted-foreground">
-              <span className="inline-flex items-center gap-1 uppercase tracking-wider">
-                {origemIcon[a.origem]} {a.origem}
-              </span>
-              <span>conf {(a.confianca * 100).toFixed(0)}%</span>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
