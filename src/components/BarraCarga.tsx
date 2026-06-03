@@ -5,14 +5,10 @@ export function BarraCarga({ pct, capacidade, consumo }: { pct: number; capacida
   const clamped = Math.min(100, Math.max(0, pct));
   return (
     <div className="space-y-1">
-      <div className="h-2 w-full rounded-full bg-surface overflow-hidden border border-border">
+      <div className="h-1.5 w-full rounded-sm bg-surface overflow-hidden border border-border">
         <div
-          className="h-full rounded-full transition-[width] duration-500 ease-out"
-          style={{
-            width: `${clamped}%`,
-            background: `linear-gradient(90deg, ${color}, color-mix(in oklab, ${color} 60%, var(--cyan-elec)))`,
-            boxShadow: `0 0 12px ${color}`,
-          }}
+          className="h-full transition-[width] duration-500 ease-out"
+          style={{ width: `${clamped}%`, backgroundColor: color }}
         />
       </div>
       <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
