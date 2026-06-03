@@ -5,10 +5,11 @@ import { StatusWebSocket } from "./StatusWebSocket";
 import { STATS_MOCK } from "@/lib/mock-data";
 
 export function Header() {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
