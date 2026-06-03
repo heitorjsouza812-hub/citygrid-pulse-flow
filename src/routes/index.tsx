@@ -19,39 +19,35 @@ function Dashboard() {
   const stats = STATS_MOCK;
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 lg:px-6 py-6 space-y-6">
+    <main className="mx-auto max-w-[1600px] px-4 lg:px-6 py-5 space-y-5">
       {/* Page heading strip */}
-      <div className="flex items-end justify-between gap-4 border-b border-border/60 pb-4">
+      <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary mb-1">Painel de Operações</div>
-          <h1 className="font-display font-extrabold text-2xl leading-none tracking-tight">
-            Visão Geral da <span className="gradient-text">Rede</span>
+          <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground mb-1">Operações · Visão Geral</div>
+          <h1 className="font-display font-semibold text-xl leading-none tracking-tight text-foreground">
+            Rede de Distribuição
           </h1>
           <p className="text-xs text-muted-foreground mt-2 font-mono">
-            8 zonas urbanas · ~400 mil habitantes · atualização contínua
+            8 zonas · ~400 mil habitantes · telemetria contínua
           </p>
         </div>
-        <div className="hidden md:flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-          <span className="rounded border border-border bg-card px-2 py-1">ANEEL PRODIST M8</span>
-          <span className="rounded border border-border bg-card px-2 py-1">60 Hz</span>
+        <div className="hidden md:flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="rounded-sm border border-border bg-card px-2 py-1">ANEEL PRODIST M8</span>
+          <span className="rounded-sm border border-border bg-card px-2 py-1">60 Hz</span>
         </div>
       </div>
 
       {/* Evento ativo */}
       {stats.evento_ativo && (
-        <div
-          className="relative overflow-hidden rounded-xl border border-border p-4 flex items-center gap-4 animate-slide-in-up"
-          style={{ background: "var(--gradient-banner)" }}
-        >
-          <div className="absolute inset-y-0 left-0 w-[3px]" style={{ background: "var(--purple-elec)", boxShadow: "0 0 16px var(--purple-elec)" }} />
-          <div className="text-3xl pl-1">{stats.evento_ativo.icone}</div>
+        <div className="card-surface p-3.5 flex items-center gap-4">
+          <div className="h-8 w-1 rounded-sm" style={{ backgroundColor: "var(--primary)" }} />
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-primary font-mono font-bold">Evento Ativo na Cidade</div>
-            <div className="font-display font-extrabold text-lg leading-tight">{stats.evento_ativo.nome}</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">Evento ativo</div>
+            <div className="font-display font-semibold text-sm leading-tight text-foreground mt-0.5">{stats.evento_ativo.nome}</div>
           </div>
           <div className="text-right shrink-0">
-            <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground font-mono font-bold">Impacto na rede</div>
-            <div className="font-mono font-bold text-2xl gradient-text tabular-nums">+{stats.evento_ativo.impacto_pct.toFixed(1)}%</div>
+            <div className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground font-mono">Impacto</div>
+            <div className="font-mono font-semibold text-lg text-foreground tabular-nums">+{stats.evento_ativo.impacto_pct.toFixed(1)}%</div>
           </div>
         </div>
       )}
@@ -72,11 +68,11 @@ function Dashboard() {
         <section>
           <div className="flex items-end justify-between mb-3">
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary mb-1">Monitoramento</div>
-              <h2 className="font-display font-extrabold text-xl tracking-tight">Zonas Urbanas</h2>
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground mb-1">Monitoramento</div>
+              <h2 className="font-display font-semibold text-base tracking-tight text-foreground">Zonas Urbanas</h2>
             </div>
-            <Link to="/mapa" className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-[10px] font-display font-bold uppercase tracking-[0.15em] text-primary hover:bg-surface/60 hover:shadow-[var(--shadow-glow-cyan)] transition-all">
-              <Map className="h-3.5 w-3.5" /> Ver no Mapa
+            <Link to="/mapa" className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 text-[10px] font-display font-medium uppercase tracking-[0.12em] text-foreground hover:border-primary/50 transition-colors">
+              <Map className="h-3.5 w-3.5" /> Ver no mapa
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
