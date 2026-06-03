@@ -9,11 +9,10 @@ const origemIcon: Record<string, React.ReactNode> = {
   genetico: <Dna className="h-3 w-3" />,
 };
 
-function timeAgo(iso: string) {
-  const diff = (Date.now() - new Date(iso).getTime()) / 60_000;
-  if (diff < 1) return "agora";
-  if (diff < 60) return `${Math.floor(diff)}m atrás`;
-  return `${Math.floor(diff / 60)}h atrás`;
+function agoLabel(min: number) {
+  if (min < 1) return "agora";
+  if (min < 60) return `${Math.floor(min)}m atrás`;
+  return `${Math.floor(min / 60)}h atrás`;
 }
 
 export function FeedAlertas({ alertas, maxHeight = "32rem" }: { alertas: Alerta[]; maxHeight?: string }) {
@@ -41,7 +40,7 @@ export function FeedAlertas({ alertas, maxHeight = "32rem" }: { alertas: Alerta[
                   </span>
                   <span className="text-[10px] text-muted-foreground truncate font-mono">{a.zona_nome}</span>
                 </div>
-                <span className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">{timeAgo(a.ts)}</span>
+                <span className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">{agoLabel(a.min_ago)}</span>
               </div>
               <div className="text-[13px] font-display font-bold text-foreground leading-tight">{a.tipo}</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">{a.descricao}</div>

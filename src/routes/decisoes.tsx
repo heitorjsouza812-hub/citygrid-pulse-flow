@@ -149,9 +149,11 @@ function DecisoesPage() {
 
 function Row({ a }: { a: Alerta }) {
   const color = urgenciaColor(a.urgencia);
+  // Render time deterministically (UTC slice) to keep SSR/client identical.
+  const time = a.ts.slice(11, 19);
   return (
     <tr className="border-b border-border/50 hover:bg-surface/40">
-      <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">{new Date(a.ts).toLocaleTimeString("pt-BR")}</td>
+      <td className="py-2 px-2 text-muted-foreground whitespace-nowrap tabular-nums">{time} UTC</td>
       <td className="py-2 px-2">{a.zona_nome}</td>
       <td className="py-2 px-2 font-bold">{a.tipo}</td>
       <td className="py-2 px-2">
@@ -161,7 +163,7 @@ function Row({ a }: { a: Alerta }) {
       </td>
       <td className="py-2 px-2 uppercase text-[10px]" style={{ color: ORIGEM_COLOR[a.origem] }}>{a.origem}</td>
       <td className="py-2 px-2 text-muted-foreground max-w-md truncate">{a.descricao}</td>
-      <td className="py-2 px-2 text-right">{(a.confianca * 100).toFixed(0)}%</td>
+      <td className="py-2 px-2 text-right tabular-nums">{(a.confianca * 100).toFixed(0)}%</td>
     </tr>
   );
 }
