@@ -1,9 +1,3 @@
-// Stable base instant — keeps SSR and client renders identical.
-const BASE_TS = Date.parse("2026-06-03T18:00:00Z");
-function nowMinus(min: number) {
-  return new Date(BASE_TS - min * 60_000).toISOString();
-}
-
 export type Risco = "BAIXO" | "MÉDIO" | "ALTO" | "CRÍTICO";
 export type BatModo = "CARREGANDO" | "STANDBY" | "DESCARGANDO";
 export type Perfil = "residencial" | "comercial" | "industrial" | "misto" | "hospitalar" | "turístico";
@@ -41,7 +35,6 @@ export interface Zona {
 export interface Alerta {
   id: string;
   ts: string;
-  min_ago: number;
   zona_id: string;
   zona_nome: string;
   tipo: string;
@@ -180,16 +173,16 @@ export const ZONAS_MOCK: Zona[] = [
 ];
 
 export const ALERTAS_MOCK: Alerta[] = [
-  { id: "a1", ts: nowMinus(0.5), min_ago: 0.5, zona_id: "zona_oeste", zona_nome: "Zona Oeste", tipo: "Redução de Carga Industrial", urgencia: "critico", origem: "xgboost", descricao: "Reduzir 12 MW em fornos não-críticos por 15 min", confianca: 0.96 },
-  { id: "a2", ts: nowMinus(1), min_ago: 1, zona_id: "zona_sul", zona_nome: "Zona Sul", tipo: "Despacho de Bateria", urgencia: "alto", origem: "lstm", descricao: "Iniciar descarga 4 MW da BESS-SUL-01", confianca: 0.87 },
-  { id: "a3", ts: nowMinus(2.4), min_ago: 2, zona_id: "zona_industrial2", zona_nome: "Distrito Industrial II", tipo: "Filtro Harmônico", urgencia: "alto", origem: "heuristica", descricao: "THD acima de 5% — ativar filtro passivo", confianca: 1.0 },
-  { id: "a4", ts: nowMinus(3.1), min_ago: 3, zona_id: "zona_centro", zona_nome: "Centro Histórico", tipo: "Realocação de Carga", urgencia: "atencao", origem: "genetico", descricao: "Transferir 2 MW para alimentador CTR-04", confianca: 0.82 },
-  { id: "a5", ts: nowMinus(4.7), min_ago: 4, zona_id: "zona_leste", zona_nome: "Zona Leste", tipo: "Pré-aquecimento Bateria", urgencia: "info", origem: "heuristica", descricao: "Carregar BESS-LES-02 até 80% antes do pico", confianca: 1.0 },
-  { id: "a6", ts: nowMinus(6.2), min_ago: 6, zona_id: "zona_sul", zona_nome: "Zona Sul", tipo: "Alerta de Evento", urgencia: "alto", origem: "lstm", descricao: "Jogo de Futebol — pico esperado em 25 min", confianca: 0.91 },
-  { id: "a7", ts: nowMinus(8), min_ago: 8, zona_id: "zona_oeste", zona_nome: "Zona Oeste", tipo: "Anomalia Detectada", urgencia: "critico", origem: "xgboost", descricao: "Sobrecarga em TR-OES-03 (95.3%)", confianca: 0.96 },
-  { id: "a8", ts: nowMinus(12), min_ago: 12, zona_id: "zona_norte", zona_nome: "Zona Norte", tipo: "Modo Econômico", urgencia: "info", origem: "genetico", descricao: "Dimming 15% iluminação pública das 23h às 5h", confianca: 0.78 },
-  { id: "a9", ts: nowMinus(18), min_ago: 18, zona_id: "zona_hospitalar", zona_nome: "Polo Hospitalar", tipo: "Reserva Ativada", urgencia: "atencao", origem: "heuristica", descricao: "Manter BESS-HOSP-01 ≥ 80% — protocolo crítico", confianca: 1.0 },
-  { id: "a10", ts: nowMinus(25), min_ago: 25, zona_id: "zona_praia", zona_nome: "Orla / Turismo", tipo: "Otimização VE", urgencia: "info", origem: "genetico", descricao: "Reescalonar 4 sessões de carregamento", confianca: 0.84 },
+  { id: "a1", ts: nowMinus(0.5), zona_id: "zona_oeste", zona_nome: "Zona Oeste", tipo: "Redução de Carga Industrial", urgencia: "critico", origem: "xgboost", descricao: "Reduzir 12 MW em fornos não-críticos por 15 min", confianca: 0.96 },
+  { id: "a2", ts: nowMinus(1), zona_id: "zona_sul", zona_nome: "Zona Sul", tipo: "Despacho de Bateria", urgencia: "alto", origem: "lstm", descricao: "Iniciar descarga 4 MW da BESS-SUL-01", confianca: 0.87 },
+  { id: "a3", ts: nowMinus(2.4), zona_id: "zona_industrial2", zona_nome: "Distrito Industrial II", tipo: "Filtro Harmônico", urgencia: "alto", origem: "heuristica", descricao: "THD acima de 5% — ativar filtro passivo", confianca: 1.0 },
+  { id: "a4", ts: nowMinus(3.1), zona_id: "zona_centro", zona_nome: "Centro Histórico", tipo: "Realocação de Carga", urgencia: "atencao", origem: "genetico", descricao: "Transferir 2 MW para alimentador CTR-04", confianca: 0.82 },
+  { id: "a5", ts: nowMinus(4.7), zona_id: "zona_leste", zona_nome: "Zona Leste", tipo: "Pré-aquecimento Bateria", urgencia: "info", origem: "heuristica", descricao: "Carregar BESS-LES-02 até 80% antes do pico", confianca: 1.0 },
+  { id: "a6", ts: nowMinus(6.2), zona_id: "zona_sul", zona_nome: "Zona Sul", tipo: "Alerta de Evento", urgencia: "alto", origem: "lstm", descricao: "Jogo de Futebol — pico esperado em 25 min", confianca: 0.91 },
+  { id: "a7", ts: nowMinus(8), zona_id: "zona_oeste", zona_nome: "Zona Oeste", tipo: "Anomalia Detectada", urgencia: "critico", origem: "xgboost", descricao: "Sobrecarga em TR-OES-03 (95.3%)", confianca: 0.96 },
+  { id: "a8", ts: nowMinus(12), zona_id: "zona_norte", zona_nome: "Zona Norte", tipo: "Modo Econômico", urgencia: "info", origem: "genetico", descricao: "Dimming 15% iluminação pública das 23h às 5h", confianca: 0.78 },
+  { id: "a9", ts: nowMinus(18), zona_id: "zona_hospitalar", zona_nome: "Polo Hospitalar", tipo: "Reserva Ativada", urgencia: "atencao", origem: "heuristica", descricao: "Manter BESS-HOSP-01 ≥ 80% — protocolo crítico", confianca: 1.0 },
+  { id: "a10", ts: nowMinus(25), zona_id: "zona_praia", zona_nome: "Orla / Turismo", tipo: "Otimização VE", urgencia: "info", origem: "genetico", descricao: "Reescalonar 4 sessões de carregamento", confianca: 0.84 },
 ];
 
 export const CLIMA_MOCK: Clima = {
@@ -209,81 +202,9 @@ export const STATS_MOCK: Stats = {
 };
 STATS_MOCK.renovavel_pct = (STATS_MOCK.renovavel_mw / STATS_MOCK.consumo_total_mw) * 100;
 
-
-
-// Substations and transformers — operational fleet data
-export interface Subestacao {
-  id: string;
-  nome: string;
-  zona_id: string;
-  tensao_kv: number;
-  carga_pct: number;
-  status: "ok" | "alerta" | "manutencao" | "falha";
-  temp_c: number;
+function nowMinus(min: number) {
+  return new Date(Date.now() - min * 60_000).toISOString();
 }
-export const SUBESTACOES_MOCK: Subestacao[] = [
-  { id: "SE-NRT-01", nome: "SE Norte 1", zona_id: "zona_norte", tensao_kv: 69, carga_pct: 32, status: "ok", temp_c: 41 },
-  { id: "SE-SUL-02", nome: "SE Sul 2", zona_id: "zona_sul", tensao_kv: 138, carga_pct: 82, status: "alerta", temp_c: 58 },
-  { id: "SE-OES-01", nome: "SE Oeste 1", zona_id: "zona_oeste", tensao_kv: 138, carga_pct: 96, status: "falha", temp_c: 71 },
-  { id: "SE-LES-03", nome: "SE Leste 3", zona_id: "zona_leste", tensao_kv: 69, carga_pct: 54, status: "ok", temp_c: 44 },
-  { id: "SE-CTR-01", nome: "SE Centro 1", zona_id: "zona_centro", tensao_kv: 138, carga_pct: 76, status: "alerta", temp_c: 52 },
-  { id: "SE-IND-02", nome: "SE Industrial 2", zona_id: "zona_industrial2", tensao_kv: 230, carga_pct: 78, status: "ok", temp_c: 49 },
-  { id: "SE-HSP-01", nome: "SE Hospitalar", zona_id: "zona_hospitalar", tensao_kv: 69, carga_pct: 75, status: "manutencao", temp_c: 46 },
-  { id: "SE-ORL-01", nome: "SE Orla", zona_id: "zona_praia", tensao_kv: 69, carga_pct: 44, status: "ok", temp_c: 39 },
-];
-
-export interface Transformador {
-  id: string;
-  se: string;
-  potencia_mva: number;
-  carga_pct: number;
-  oleo_c: number;
-  enrol_c: number;
-  saude: number; // 0-100
-}
-export const TRANSFORMADORES_MOCK: Transformador[] = [
-  { id: "TR-OES-03", se: "SE-OES-01", potencia_mva: 40, carga_pct: 95.3, oleo_c: 78, enrol_c: 112, saude: 62 },
-  { id: "TR-SUL-02", se: "SE-SUL-02", potencia_mva: 30, carga_pct: 82.1, oleo_c: 64, enrol_c: 98, saude: 81 },
-  { id: "TR-IND-05", se: "SE-IND-02", potencia_mva: 50, carga_pct: 77.4, oleo_c: 58, enrol_c: 92, saude: 88 },
-  { id: "TR-CTR-04", se: "SE-CTR-01", potencia_mva: 25, carga_pct: 74.0, oleo_c: 55, enrol_c: 88, saude: 90 },
-  { id: "TR-LES-01", se: "SE-LES-03", potencia_mva: 20, carga_pct: 51.8, oleo_c: 48, enrol_c: 78, saude: 95 },
-  { id: "TR-NRT-02", se: "SE-NRT-01", potencia_mva: 20, carga_pct: 26.8, oleo_c: 42, enrol_c: 68, saude: 98 },
-];
-
-export interface TarifaWindow {
-  nome: string;
-  inicio: string;
-  fim: string;
-  preco_rs_mwh: number;
-  tipo: "fora-ponta" | "intermediario" | "ponta";
-  ativo: boolean;
-}
-export const TARIFA_MOCK: TarifaWindow[] = [
-  { nome: "Fora Ponta",       inicio: "00:00", fim: "17:30", preco_rs_mwh: 287.40, tipo: "fora-ponta",   ativo: false },
-  { nome: "Intermediário",    inicio: "17:30", fim: "20:30", preco_rs_mwh: 412.10, tipo: "intermediario",ativo: true  },
-  { nome: "Ponta",            inicio: "20:30", fim: "23:30", preco_rs_mwh: 1024.80, tipo: "ponta",        ativo: false },
-  { nome: "Fora Ponta",       inicio: "23:30", fim: "24:00", preco_rs_mwh: 287.40, tipo: "fora-ponta",   ativo: false },
-];
-
-export interface ShiftInfo {
-  operador: string;
-  matricula: string;
-  turno: string;
-  inicio: string;
-  fim: string;
-  supervisor: string;
-  centro: string;
-}
-export const SHIFT_MOCK: ShiftInfo = {
-  operador: "Carlos R. Mendes",
-  matricula: "OP-2381",
-  turno: "Vespertino",
-  inicio: "14:00",
-  fim: "22:00",
-  supervisor: "Eng. Patrícia Vieira",
-  centro: "COS — Centro de Operações do Sistema",
-};
-
 
 export function generateHistorico(zona: Zona, n = 48): { t: number; consumo: number; previsao: number; freq: number; tensao: number; thd: number; soc: number }[] {
   const out = [];

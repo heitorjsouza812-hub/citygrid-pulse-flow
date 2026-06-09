@@ -1,14 +1,8 @@
-import { useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Search, Bell } from "lucide-react";
+import { Zap, Map, LayoutDashboard, Brain } from "lucide-react";
 import { StatusWebSocket } from "./StatusWebSocket";
 import { STATS_MOCK } from "@/lib/mock-data";
-
-const routeLabels: Record<string, string> = {
-  "/": "Dashboard",
-  "/mapa": "Mapa da Rede",
-  "/decisoes": "Decisões IA",
-};
 
 export function Header() {
   const [now, setNow] = useState<Date | null>(null);
@@ -20,50 +14,57 @@ export function Header() {
     return () => clearInterval(id);
   }, []);
 
-  const crumb = pathname.startsWith("/zona")
-    ? "Análise de Zona"
-    : routeLabels[pathname] ?? "Operações";
+  const links = [
+    { to: "/", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/mapa", label: "Mapa", icon: Map },
+    { to: "/decisoes", label: "Decisões IA", icon: Brain },
+  ] as const;
 
   return (
-    <header className="sticky top-0 z-20 bg-card border-b border-border h-11 flex items-center px-4 lg:px-6 gap-4">
-      <div className="flex items-center gap-2 text-[11px] font-mono">
-        <span className="text-muted-foreground uppercase tracking-[0.14em]">COS</span>
-        <span className="text-muted-foreground">/</span>
-        <span className="text-foreground">{crumb}</span>
-      </div>
+    <header className="sticky top-0 z-40 bg-card border-b border-border">
+      <div className="mx-auto max-w-[1600px] px-4 lg:px-6 h-12 flex items-center gap-6 flex-wrap">
+        <Link to="/" className="flex items-center gap-2.5 mr-2">
+          <div className="h-7 w-7 rounded-sm border border-border bg-surface flex items-center justify-center">
+            <Zap className="h-3.5 w-3.5 text-primary" strokeWidth={2.25} />
+          </div>
+          <div className="leading-tight">
+            <div className="font-display font-semibold text-[13px] tracking-tight text-foreground">
+              CityGrid Brain
+            </div>
+            <div className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
+              SCADA · v4.2
+            </div>
+          </div>
+        </Link>
 
-      <div className="hidden md:flex items-center gap-2 ml-4 flex-1 max-w-md">
-        <div className="flex items-center gap-2 w-full h-7 px-2.5 rounded-sm border border-border bg-surface/60 text-[11px] text-muted-foreground">
-          <Search className="h-3.5 w-3.5" />
-          <input
-            type="text"
-            placeholder="Buscar zona, subestação, transformador, alimentador…"
-            className="bg-transparent flex-1 outline-none placeholder:text-muted-foreground text-foreground"
-          />
-          <span className="text-[9px] font-mono px-1 rounded-sm border border-border bg-card">⌘K</span>
-        </div>
-      </div>
+        <nav className="hidden md:flex items-center gap-0 ml-2 h-full">
+          {links.map((l) => {
+            const active = l.to === "/" ? pathname === "/" : pathname.startsWith(l.to);
+            return (
+              <Link
+                key={l.to}
+                to={l.to}
+                className="px-3 h-12 text-[11px] font-display font-medium tracking-tight flex items-center gap-1.5 transition-colors border-b-2"
+                style={{
+                  color: active ? "var(--foreground)" : "var(--muted-foreground)",
+                  borderColor: active ? "var(--primary)" : "transparent",
+                }}
+              >
+                <l.icon className="h-3.5 w-3.5" /> {l.label}
+              </Link>
+            );
+          })}
+        </nav>
 
-      <div className="flex items-center gap-3 ml-auto">
-        <button
-          className="relative h-7 w-7 rounded-sm border border-border bg-surface/60 text-muted-foreground hover:text-foreground flex items-center justify-center"
-          aria-label="Notificações"
-        >
-          <Bell className="h-3.5 w-3.5" />
-          <span
-            className="absolute -top-1 -right-1 h-3 min-w-3 px-0.5 rounded-full text-[9px] font-mono font-semibold flex items-center justify-center"
-            style={{ backgroundColor: "var(--risk-crit)", color: "var(--background)" }}
-          >
-            3
-          </span>
-        </button>
-        <div className="hidden md:flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
-          <span>CICLO <span className="text-foreground tabular-nums">#{STATS_MOCK.ciclo}</span></span>
-          <span className="tabular-nums text-foreground" suppressHydrationWarning>
-            {now ? now.toLocaleTimeString("pt-BR") : "--:--:--"}
-          </span>
+        <div className="flex items-center gap-4 ml-auto">
+          <div className="hidden md:flex items-center gap-4 text-[10px] font-mono text-muted-foreground">
+            <span>CICLO <span className="text-foreground">#{STATS_MOCK.ciclo}</span></span>
+            <span className="tabular-nums text-foreground" suppressHydrationWarning>
+              {now ? now.toLocaleTimeString("pt-BR") : "--:--:--"}
+            </span>
+          </div>
+          <StatusWebSocket status="conectado" />
         </div>
-        <StatusWebSocket status="conectado" />
       </div>
     </header>
   );

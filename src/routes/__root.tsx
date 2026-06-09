@@ -113,32 +113,14 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 import { Header } from "../components/Header";
-import { AppSidebar } from "../components/AppSidebar";
-import { SystemBar } from "../components/SystemBar";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <div className="flex-1 min-w-0 flex flex-col">
-          <SystemBar />
-          <Header />
-          <main className="flex-1 min-w-0">
-            <Outlet />
-          </main>
-          <footer className="border-t border-border bg-card px-4 lg:px-6 h-8 flex items-center justify-between text-[10px] font-mono text-muted-foreground">
-            <span>© 2026 CityGrid Brain · Distribuidora Municipal · COS BR-SE-1</span>
-            <span className="hidden md:flex items-center gap-4">
-              <span>API v4.2.0</span>
-              <span>SLA 99.97%</span>
-              <span>Sessão segura · TLS 1.3</span>
-            </span>
-          </footer>
-        </div>
-      </div>
+      <Header />
+      <Outlet />
     </QueryClientProvider>
   );
 }

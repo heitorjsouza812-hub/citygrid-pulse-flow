@@ -1,13 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Zap, Sun, AlertOctagon, AlertTriangle, Bot, Leaf, Wind, Cloud, Droplets, ThermometerSun, Map, Gauge, TrendingUp } from "lucide-react";
+import { Zap, Sun, AlertOctagon, AlertTriangle, Bot, Leaf, Wind, Cloud, Droplets, ThermometerSun, Gauge, Map } from "lucide-react";
 import { CardZona } from "@/components/CardZona";
 import { MetricaCard } from "@/components/MetricaCard";
 import { FeedAlertas } from "@/components/FeedAlertas";
-import { SubestacoesPanel } from "@/components/panels/Subestacoes";
-import { TransformadoresPanel } from "@/components/panels/Transformadores";
-import { ConformidadeANEELPanel } from "@/components/panels/ConformidadeANEEL";
-import { TarifaPanel } from "@/components/panels/Tarifa";
-import { PlantaoPanel } from "@/components/panels/Plantao";
 import { ZONAS_MOCK, ALERTAS_MOCK, STATS_MOCK, CLIMA_MOCK } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/")({
@@ -22,34 +17,23 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const stats = STATS_MOCK;
-  const capacidade_total = ZONAS_MOCK.reduce((s, z) => s + z.capacidade_mw, 0);
-  const carga_global = (stats.consumo_total_mw / capacidade_total) * 100;
-  const reserva = capacidade_total - stats.consumo_total_mw;
-  const ve_em_uso = ZONAS_MOCK.reduce((s, z) => s + z.ve_postos_em_uso, 0);
-  const ve_total = ZONAS_MOCK.reduce((s, z) => s + z.ve_postos_total, 0);
-  const bess_medio = ZONAS_MOCK.reduce((s, z) => s + z.bat_soc_pct, 0) / ZONAS_MOCK.length;
-  const pico_previsto = Math.max(...ZONAS_MOCK.flatMap((z) => z.previsao_mw));
 
   return (
     <main className="mx-auto max-w-[1600px] px-4 lg:px-6 py-5 space-y-5">
-      {/* Breadcrumb + heading strip */}
+      {/* Page heading strip */}
       <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground mb-1">
-            COS / Operações / Visão Geral
-          </div>
+          <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground mb-1">Operações · Visão Geral</div>
           <h1 className="font-display font-semibold text-xl leading-none tracking-tight text-foreground">
-            Painel da Rede de Distribuição
+            Rede de Distribuição
           </h1>
           <p className="text-xs text-muted-foreground mt-2 font-mono">
-            8 zonas urbanas · ~400 mil consumidores · {capacidade_total.toFixed(0)} MW instalados · telemetria 1 Hz
+            8 zonas · ~400 mil habitantes · telemetria contínua
           </p>
         </div>
         <div className="hidden md:flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
-          <span className="rounded-sm border border-border bg-card px-2 py-1">PRODIST M8</span>
+          <span className="rounded-sm border border-border bg-card px-2 py-1">ANEEL PRODIST M8</span>
           <span className="rounded-sm border border-border bg-card px-2 py-1">60 Hz</span>
-          <span className="rounded-sm border border-border bg-card px-2 py-1">SE-{ZONAS_MOCK.length}</span>
-          <span className="rounded-sm border border-border bg-card px-2 py-1">CICLO #{stats.ciclo}</span>
         </div>
       </div>
 
@@ -68,28 +52,18 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Métricas globais — 8 KPIs */}
-      <section className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2.5">
-        <MetricaCard icon={<Zap className="h-4 w-4" />} label="Demanda" valor={stats.consumo_total_mw.toFixed(1)} unidade="MW" sub={`${carga_global.toFixed(1)}% da capacidade`} pct={carga_global} />
-        <MetricaCard icon={<Gauge className="h-4 w-4" />} label="Reserva" valor={reserva.toFixed(1)} unidade="MW" sub="margem operativa" color="var(--risk-low)" pct={(reserva / capacidade_total) * 100} />
-        <MetricaCard icon={<TrendingUp className="h-4 w-4" />} label="Pico Previsto" valor={pico_previsto.toFixed(1)} unidade="MW" sub="janela 30 min · LSTM" color="var(--risk-med)" />
-        <MetricaCard icon={<Sun className="h-4 w-4" />} label="Renovável" valor={stats.renovavel_pct.toFixed(1)} unidade="%" sub={`${stats.renovavel_mw.toFixed(2)} MW gerados`} color="var(--risk-low)" pct={stats.renovavel_pct} />
-        <MetricaCard icon={<AlertOctagon className="h-4 w-4" />} label="Zonas Críticas" valor={stats.zonas_criticas} sub="em emergência" color="var(--risk-crit)" />
-        <MetricaCard icon={<AlertTriangle className="h-4 w-4" />} label="Anomalias" valor={stats.anomalias} sub="ativas agora" color="var(--risk-high)" />
-        <MetricaCard icon={<Bot className="h-4 w-4" />} label="Ações IA / 24h" valor={stats.acoes_ia_total.toLocaleString("pt-BR")} sub="decisões executadas" />
-        <MetricaCard icon={<Leaf className="h-4 w-4" />} label="Economia" valor={stats.economia_mwh.toFixed(1)} unidade="MWh" sub="evitados pela IA" color="var(--risk-low)" />
-      </section>
-
-      {/* Sub-KPI strip */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-        <MiniKpi label="BESS médio (SOC)" val={`${bess_medio.toFixed(0)}%`} sub="frota de baterias" />
-        <MiniKpi label="Postos VE em uso" val={`${ve_em_uso} / ${ve_total}`} sub={`${((ve_em_uso / ve_total) * 100).toFixed(0)}% ocupação`} />
-        <MiniKpi label="Temperatura urbana" val={`${CLIMA_MOCK.temp_c.toFixed(1)} °C`} sub={`sensação ${CLIMA_MOCK.sensacao_c.toFixed(1)} °C`} />
-        <MiniKpi label="Irradiância" val={`${CLIMA_MOCK.irradiancia_wm2} W/m²`} sub={`vento ${CLIMA_MOCK.vento_ms.toFixed(1)} m/s`} />
+      {/* Métricas globais */}
+      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <MetricaCard icon={<Zap className="h-4 w-4" />} label="Consumo Total" valor={stats.consumo_total_mw.toFixed(1)} unidade="MW" sub="consumidos agora" pct={(stats.consumo_total_mw / 250) * 100} />
+        <MetricaCard icon={<Sun className="h-4 w-4" />} label="Renovável" valor={stats.renovavel_pct.toFixed(1)} unidade="%" sub={`${stats.renovavel_mw.toFixed(2)} MW de fontes limpas`} color="var(--risk-low)" gradient pct={stats.renovavel_pct} />
+        <MetricaCard icon={<AlertOctagon className="h-4 w-4" />} label="Zonas Críticas" valor={stats.zonas_criticas} sub="zonas em emergência" color="var(--risk-crit)" />
+        <MetricaCard icon={<AlertTriangle className="h-4 w-4" />} label="Anomalias" valor={stats.anomalias} sub="detectadas agora" color="var(--risk-high)" />
+        <MetricaCard icon={<Bot className="h-4 w-4" />} label="Ações da IA" valor={stats.acoes_ia_total.toLocaleString("pt-BR")} sub="decisões acumuladas" color="var(--purple-elec)" />
+        <MetricaCard icon={<Leaf className="h-4 w-4" />} label="Economia" valor={stats.economia_mwh.toFixed(1)} unidade="MWh" sub="economizados pela IA" color="var(--risk-low)" gradient />
       </section>
 
       {/* Grid principal */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6">
         {/* Zonas */}
         <section>
           <div className="flex items-end justify-between mb-3">
@@ -104,40 +78,17 @@ function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {ZONAS_MOCK.map((z) => <CardZona key={z.zona_id} zona={z} />)}
           </div>
-
-          {/* Operational tables */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
-            <SubestacoesPanel />
-            <TransformadoresPanel />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
-            <ConformidadeANEELPanel />
-            <TarifaPanel />
-          </div>
         </section>
 
+
         {/* Sidebar */}
-        <aside className="space-y-3">
-          <PlantaoPanel />
+        <aside className="space-y-4">
           <PainelClima />
           <PainelRenovavel />
           <PainelAlertas />
         </aside>
       </div>
     </main>
-  );
-}
-
-function MiniKpi({ label, val, sub }: { label: string; val: string; sub: string }) {
-  return (
-    <div className="card-surface px-3.5 py-2.5 flex items-center justify-between">
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-mono">{label}</div>
-        <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{sub}</div>
-      </div>
-      <div className="font-mono text-base font-semibold tabular-nums text-foreground">{val}</div>
-    </div>
   );
 }
 
