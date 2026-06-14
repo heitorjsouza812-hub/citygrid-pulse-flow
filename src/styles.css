@@ -1,0 +1,136 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* CityGrid Brain — Utility Operations console
+ * Sober, enterprise SCADA aesthetic. Dark slate base, single muted steel accent.
+ * Risk colors remain functional (ANEEL semantics). No decorative gradients/glow.
+ */
+
+@theme inline {
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-surface: var(--surface);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-risk-low: var(--risk-low);
+  --color-risk-med: var(--risk-med);
+  --color-risk-high: var(--risk-high);
+  --color-risk-crit: var(--risk-crit);
+  --color-cyan-elec: var(--cyan-elec);
+  --color-purple-elec: var(--purple-elec);
+
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+:root, .dark {
+  /* Base palette — slate utility console */
+  --background: oklch(0.16 0.012 250);
+  --foreground: oklch(0.93 0.005 250);
+  --card: oklch(0.195 0.012 250);
+  --card-foreground: oklch(0.93 0.005 250);
+  --surface: oklch(0.225 0.012 250);
+  --popover: oklch(0.195 0.012 250);
+  --popover-foreground: oklch(0.93 0.005 250);
+
+  /* Single restrained steel-blue accent */
+  --primary: oklch(0.72 0.09 235);
+  --primary-foreground: oklch(0.12 0.012 250);
+  --secondary: oklch(0.24 0.012 250);
+  --secondary-foreground: oklch(0.93 0.005 250);
+  --muted: oklch(0.26 0.012 250);
+  --muted-foreground: oklch(0.62 0.015 250);
+  --accent: oklch(0.72 0.09 235);
+  --accent-foreground: oklch(0.12 0.012 250);
+  --destructive: oklch(0.62 0.18 28);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.30 0.012 250);
+  --input: oklch(0.30 0.012 250);
+  --ring: oklch(0.72 0.09 235);
+
+  /* Risk semantics — kept functional, slightly desaturated */
+  --risk-low: oklch(0.68 0.12 160);
+  --risk-med: oklch(0.76 0.13 80);
+  --risk-high: oklch(0.70 0.16 50);
+  --risk-crit: oklch(0.62 0.18 28);
+
+  /* Legacy aliases retained for backwards-compat with existing components.
+   * Point them at the sober steel accent instead of electric cyan/purple. */
+  --cyan-elec: var(--primary);
+  --purple-elec: oklch(0.62 0.08 250);
+
+  --gradient-accent: var(--primary);
+  --gradient-banner: color-mix(in oklab, var(--primary) 10%, var(--card));
+  --gradient-green: var(--risk-low);
+
+  --shadow-card: 0 1px 0 0 oklch(1 0 0 / 0.02) inset, 0 1px 2px 0 oklch(0 0 0 / 0.4);
+  --shadow-glow-cyan: 0 0 0 1px color-mix(in oklab, var(--primary) 35%, transparent);
+  --shadow-glow-crit: 0 0 0 1px color-mix(in oklab, var(--risk-crit) 45%, transparent);
+
+  --radius: 6px;
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { background-color: var(--color-background); color: var(--color-foreground); }
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01", "tnum";
+  }
+  .font-mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+  .font-display { font-family: var(--font-display); letter-spacing: -0.01em; }
+}
+
+@utility card-surface {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  position: relative;
+}
+@utility card-accent-top { position: relative; }
+@utility gradient-text { color: var(--foreground); }
+@utility grid-bg { background-color: var(--color-card); }
+
+@keyframes pulse-crit {
+  0%, 100% { border-color: color-mix(in oklab, var(--risk-crit) 55%, var(--border)); }
+  50%      { border-color: var(--risk-crit); }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+@keyframes slide-in-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-pulse-crit { animation: pulse-crit 1.8s ease-in-out infinite; }
+.animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+.animate-slide-in-up { animation: slide-in-up 0.2s ease-out; }
