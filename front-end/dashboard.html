@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>CityGrid Brain — Smart City Energy Monitor</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap"
+        rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #060810;
+            --surface: #0d1117;
+            --card: #111827;
+            --border: #1f2937;
+            --accent: #00e5ff;
+            --accent2: #7c3aed;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --orange: #f97316;
+            --red: #ef4444;
+            --text: #f1f5f9;
+            --muted: #64748b;
+            --font-mono: 'Space Mono', monospace;
+            --font-sans: 'Syne', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grid noise overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0, 229, 255, .03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 229, 255, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── HEADER ── */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6, 8, 16, .92);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .logo-text {
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: -.01em;
+            color: var(--text);
+        }
+
+        .logo-sub {
+            font-size: .7rem;
+            color: var(--muted);
+            font-family: var(--font-mono);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            font-family: var(--font-mono);
+            font-size: .7rem;
+            color: var(--green);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: .5;
+                transform: scale(1.3);
+            }
+        }
+
+        .ciclo-badge {
+            font-family: var(--font-mono);
+            font-size: .7rem;
+            color: var(--muted);
+        }
+
+        /* ── LAYOUT ── */
+        .container {
+            position: relative;
+            z-index: 1;
+            padding: 1.5rem 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* ── STATS CARDS ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.2rem;
+            position: relative;
+            overflow: hidden;
+            transition: border-color .2s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            opacity: .6;
+        }
+
+        .stat-label {
+            font-size: .65rem;
+            color: var(--muted);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: .4rem;
+        }
+
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            line-height: 1;
+        }
+
+        .stat-sub {
+            font-size: .65rem;
+            color: var(--muted);
+            margin-top: .3rem;
+            font-family: var(--font-mono);
+        }
+
+        .stat-accent {
+            color: var(--accent);
+        }
+
+        .stat-green {
+            color: var(--green);
+        }
+
+        .stat-yellow {
+            color: var(--yellow);
+        }
+
+        .stat-red {
+            color: var(--red);
+        }
+
+        .stat-orange {
+            color: var(--orange);
+        }
+
+        /* ── MAIN GRID ── */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 1.5rem;
+        }
+
+        /* ── PANEL ── */
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: .8rem 1.2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: .75rem;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .panel-title span {
+            color: var(--accent);
+        }
+
+        .panel-body {
+            padding: 1rem 1.2rem;
+        }
+
+        /* ── ZONA CARDS ── */
+        .zonas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .zona-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            transition: all .2s;
+            cursor: pointer;
+        }
+
+        .zona-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .zona-card.risco-critico {
+            border-color: var(--red);
+            background: rgba(239, 68, 68, .06);
+        }
+
+        .zona-card.risco-alto {
+            border-color: var(--orange);
+            background: rgba(249, 115, 22, .04);
+        }
+
+        .zona-card.risco-medio {
+            border-color: var(--yellow);
+        }
+
+        .zona-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: .8rem;
+        }
+
+        .zona-nome {
+            font-size: .85rem;
+            font-weight: 700;
+        }
+
+        .zona-perfil {
+            font-size: .6rem;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            margin-top: .15rem;
+        }
+
+        .risco-badge {
+            font-size: .6rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            padding: .2rem .5rem;
+            border-radius: 4px;
+            letter-spacing: .06em;
+        }
+
+        .risco-badge.BAIXO {
+            background: rgba(16, 185, 129, .15);
+            color: var(--green);
+        }
+
+        .risco-badge.MÉDIO {
+            background: rgba(245, 158, 11, .15);
+            color: var(--yellow);
+        }
+
+        .risco-badge.ALTO {
+            background: rgba(249, 115, 22, .15);
+            color: var(--orange);
+        }
+
+        .risco-badge.CRÍTICO {
+            background: rgba(239, 68, 68, .2);
+            color: var(--red);
+            animation: blink .8s infinite;
+        }
+
+        .risco-badge.AGUARDANDO {
+            background: rgba(100, 116, 139, .15);
+            color: var(--muted);
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .5
+            }
+        }
+
+        /* Barra de progresso */
+        .progress-wrap {
+            margin-bottom: .8rem;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: .65rem;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            margin-bottom: .3rem;
+        }
+
+        .progress-bar-bg {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width .5s ease;
+        }
+
+        .fill-green {
+            background: var(--green);
+        }
+
+        .fill-yellow {
+            background: var(--yellow);
+        }
+
+        .fill-orange {
+            background: var(--orange);
+        }
+
+        .fill-red {
+            background: var(--red);
+            box-shadow: 0 0 8px var(--red);
+        }
+
+        /* Zona stats row */
+        .zona-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: .5rem;
+            margin-bottom: .6rem;
+        }
+
+        .zona-stat-item {
+            text-align: center;
+        }
+
+        .zona-stat-val {
+            font-size: .8rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        .zona-stat-lbl {
+            font-size: .55rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        /* Previsão sparkline */
+        .sparkline-wrap {
+            margin-top: .6rem;
+        }
+
+        .sparkline-label {
+            font-size: .6rem;
+            color: var(--muted);
+            margin-bottom: .3rem;
+            font-family: var(--font-mono);
+        }
+
+        .sparkline {
+            width: 100%;
+            height: 32px;
+        }
+
+        /* Anomalia tag */
+        .anomalia-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            font-size: .6rem;
+            font-family: var(--font-mono);
+            background: rgba(239, 68, 68, .12);
+            color: var(--red);
+            padding: .2rem .5rem;
+            border-radius: 4px;
+            margin-top: .4rem;
+        }
+
+        /* Evento tag */
+        .evento-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            font-size: .6rem;
+            font-family: var(--font-mono);
+            background: rgba(124, 58, 237, .15);
+            color: #a78bfa;
+            padding: .2rem .5rem;
+            border-radius: 4px;
+            margin-top: .4rem;
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Alertas */
+        .alerta-list {
+            display: flex;
+            flex-direction: column;
+            gap: .5rem;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .alerta-item {
+            padding: .6rem .8rem;
+            border-radius: 8px;
+            border-left: 3px solid;
+            font-size: .7rem;
+        }
+
+        .alerta-item.CRÍTICA {
+            background: rgba(239, 68, 68, .08);
+            border-color: var(--red);
+        }
+
+        .alerta-item.ALTA {
+            background: rgba(249, 115, 22, .08);
+            border-color: var(--orange);
+        }
+
+        .alerta-item.MÉDIA {
+            background: rgba(245, 158, 11, .08);
+            border-color: var(--yellow);
+        }
+
+        .alerta-nome {
+            font-weight: 700;
+            font-family: var(--font-mono);
+            font-size: .65rem;
+        }
+
+        .alerta-desc {
+            color: var(--muted);
+            margin-top: .15rem;
+            line-height: 1.3;
+        }
+
+        .alerta-ts {
+            font-family: var(--font-mono);
+            font-size: .55rem;
+            color: var(--muted);
+            margin-top: .2rem;
+        }
+
+        /* Clima */
+        .clima-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .6rem;
+        }
+
+        .clima-item {
+            text-align: center;
+        }
+
+        .clima-val {
+            font-size: 1.2rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+        }
+
+        .clima-lbl {
+            font-size: .6rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        /* Renováveis */
+        .renov-bar-wrap {
+            margin-top: .5rem;
+        }
+
+        .renov-pct {
+            font-size: 2rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            color: var(--green);
+            text-align: center;
+            line-height: 1;
+        }
+
+        .renov-label {
+            font-size: .65rem;
+            color: var(--muted);
+            text-align: center;
+            font-family: var(--font-mono);
+            margin-top: .2rem;
+            margin-bottom: .6rem;
+        }
+
+        /* Evento banner */
+        .evento-banner {
+            background: linear-gradient(135deg, rgba(124, 58, 237, .2), rgba(0, 229, 255, .1));
+            border: 1px solid rgba(124, 58, 237, .4);
+            border-radius: 10px;
+            padding: .8rem 1rem;
+            margin-bottom: 1rem;
+            font-size: .75rem;
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+
+        .evento-icon {
+            font-size: 1.2rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--surface);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        /* ── LOADING ── */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            flex-direction: column;
+            gap: 1rem;
+            color: var(--muted);
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── CONNECTION ERROR ── */
+        .conn-error {
+            background: rgba(239, 68, 68, .08);
+            border: 1px solid rgba(239, 68, 68, .3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-size: .75rem;
+            color: var(--red);
+            text-align: center;
+        }
+
+        /* Responsive */
+        @media(max-width:1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .sidebar .panel {
+                flex: 1;
+                min-width: 280px;
+            }
+        }
+
+        @media(max-width:640px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    
+        .map-zona { cursor: pointer; transition: opacity .2s; }
+        .map-zona:hover { opacity: .85; }
+        .map-risco-BAIXO   { fill: #14532d !important; stroke: #22c55e !important; }
+        .map-risco-MÉDIO   { fill: #713f12 !important; stroke: #eab308 !important; }
+        .map-risco-ALTO    { fill: #7c2d12 !important; stroke: #f97316 !important; }
+        .map-risco-CRÍTICO { fill: #450a0a !important; stroke: #ef4444 !important; animation: pulsar .8s infinite alternate; }
+        @keyframes pulsar { from { stroke-opacity:.6; } to { stroke-opacity:1; stroke-width:3; } }
+
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            <div>
+                <div class="logo-text">CityGrid Brain</div>
+                <div class="logo-sub">Smart City Energy Monitor</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="ciclo-badge" id="ciclo-badge">Ciclo #—</div>
+            <div class="status-badge" id="status-badge">
+                <div class="status-dot"></div>
+                <span>CONECTANDO...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- Evento ativo -->
+        <div id="evento-banner" style="display:none" class="evento-banner">
+            <span class="evento-icon">⚡</span>
+            <span id="evento-texto"></span>
+        </div>
+
+        <!-- Stats cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Consumo Total</div>
+                <div class="stat-value stat-accent" id="s-consumo">—</div>
+                <div class="stat-sub" id="s-consumo-sub">MW</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Renovável</div>
+                <div class="stat-value stat-green" id="s-renov">—</div>
+                <div class="stat-sub" id="s-renov-sub">% da geração</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Zonas Críticas</div>
+                <div class="stat-value stat-red" id="s-criticos">—</div>
+                <div class="stat-sub" id="s-crit-sub">zonas em alerta</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Anomalias Ativas</div>
+                <div class="stat-value stat-orange" id="s-anomalias">—</div>
+                <div class="stat-sub">detectadas agora</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Ações da IA</div>
+                <div class="stat-value stat-accent" id="s-acoes">—</div>
+                <div class="stat-sub">decisões tomadas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Economia</div>
+                <div class="stat-value stat-green" id="s-economia">—</div>
+                <div class="stat-sub">MWh economizados</div>
+            </div>
+        </div>
+
+        <!-- Main grid -->
+        <div class="main-grid">
+
+            <!-- Zonas -->
+            <div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">⚡ <span>Zonas da Cidade</span> — Monitoramento em Tempo Real</div>
+                        <div style="font-size:.65rem;color:var(--muted);font-family:var(--font-mono)"
+                            id="ultimo-update">—</div>
+                    </div>
+                    <div class="panel-body">
+                        
+        <!-- ═══ MAPA DA CIDADE + GRÁFICO HISTÓRICO ═══ -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+
+          <!-- Mapa SVG -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">🗺️ <span>Mapa de Risco — CityGrid</span></div>
+              <div style="font-size:.6rem;color:var(--muted);font-family:var(--font-mono)" id="mapa-ts">—</div>
+            </div>
+            <div class="panel-body" style="padding:1rem;">
+              <svg id="city-map" viewBox="0 0 320 220" style="width:100%;border-radius:8px;background:#0d1117;">
+                <!-- NORTE -->
+                <rect x="90" y="10" width="80" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5" id="map-norte" class="map-zona" data-zona="zona_norte"/>
+                <text x="130" y="35" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="monospace">NORTE</text>
+                <text x="130" y="55" text-anchor="middle" fill="#64748b" font-size="7" id="map-norte-pct">—%</text>
+                <!-- SUL -->
+                <rect x="90" y="155" width="80" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5" id="map-sul" class="map-zona" data-zona="zona_sul"/>
+                <text x="130" y="180" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="monospace">SUL</text>
+                <text x="130" y="197" text-anchor="middle" fill="#64748b" font-size="7" id="map-sul-pct">—%</text>
+                <!-- LESTE -->
+                <rect x="200" y="80" width="80" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5" id="map-leste" class="map-zona" data-zona="zona_leste"/>
+                <text x="240" y="105" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="monospace">LESTE</text>
+                <text x="240" y="122" text-anchor="middle" fill="#64748b" font-size="7" id="map-leste-pct">—%</text>
+                <!-- OESTE -->
+                <rect x="10" y="80" width="80" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5" id="map-oeste" class="map-zona" data-zona="zona_oeste"/>
+                <text x="50" y="105" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="monospace">OESTE</text>
+                <text x="50" y="122" text-anchor="middle" fill="#64748b" font-size="7" id="map-oeste-pct">—%</text>
+                <!-- CENTRO -->
+                <rect x="105" y="80" width="60" height="55" rx="6" fill="#1e2d3d" stroke="#3b82f6" stroke-width="1.5" id="map-centro" class="map-zona" data-zona="zona_centro"/>
+                <text x="135" y="105" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="monospace">CENTRO</text>
+                <text x="135" y="122" text-anchor="middle" fill="#64748b" font-size="7" id="map-centro-pct">—%</text>
+                <!-- HOSPITALAR -->
+                <rect x="200" y="10" width="80" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5" id="map-hospitalar" class="map-zona" data-zona="zona_hospitalar"/>
+                <text x="240" y="35" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="monospace">HOSPITAL</text>
+                <text x="240" y="52" text-anchor="middle" fill="#64748b" font-size="7" id="map-hospitalar-pct">—%</text>
+                <!-- UNIVERSITÁRIA -->
+                <rect x="10" y="10" width="70" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5" id="map-universitaria" class="map-zona" data-zona="zona_universitaria"/>
+                <text x="45" y="33" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="monospace">UNIVER-</text>
+                <text x="45" y="43" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="monospace">SITÁRIA</text>
+                <text x="45" y="56" text-anchor="middle" fill="#64748b" font-size="7" id="map-universitaria-pct">—%</text>
+                <!-- AEROPORTO -->
+                <rect x="10" y="155" width="80" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5" id="map-aeroporto" class="map-zona" data-zona="zona_aeroporto"/>
+                <text x="50" y="180" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="monospace">AEROPORTO</text>
+                <text x="50" y="197" text-anchor="middle" fill="#64748b" font-size="7" id="map-aeroporto-pct">—%</text>
+                <!-- Legenda -->
+                <rect x="210" y="158" width="10" height="10" rx="2" fill="#22c55e"/>
+                <text x="224" y="167" fill="#64748b" font-size="7">BAIXO</text>
+                <rect x="210" y="172" width="10" height="10" rx="2" fill="#eab308"/>
+                <text x="224" y="181" fill="#64748b" font-size="7">MÉDIO</text>
+                <rect x="210" y="186" width="10" height="10" rx="2" fill="#f97316"/>
+                <text x="224" y="195" fill="#64748b" font-size="7">ALTO</text>
+                <rect x="210" y="200" width="10" height="10" rx="2" fill="#ef4444"/>
+                <text x="224" y="209" fill="#64748b" font-size="7">CRÍTICO</text>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Gráfico histórico de consumo -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">📈 <span>Consumo Histórico — Todas as Zonas</span></div>
+              <div style="font-size:.6rem;color:var(--muted);font-family:var(--font-mono)">últimos 20 ciclos</div>
+            </div>
+            <div class="panel-body" style="padding:1rem;height:220px;">
+              <canvas id="chart-historico" style="width:100%;height:200px;"></canvas>
+            </div>
+          </div>
+
+        </div>
+        <!-- ═══ FIM MAPA + GRÁFICO ═══ -->
+
+        <div class="zonas-grid" id="zonas-grid">
+                            <div class="loading">
+                                <div class="spinner"></div><span>Conectando ao backend...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+
+                <!-- Clima -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">🌡 <span>Clima</span></div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="clima-grid" id="clima-grid">
+                            <div class="clima-item">
+                                <div class="clima-val" id="c-temp">—</div>
+                                <div class="clima-lbl">Temp °C</div>
+                            </div>
+                            <div class="clima-item">
+                                <div class="clima-val" id="c-irrad">—</div>
+                                <div class="clima-lbl">Irrad W/m²</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Renovável -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">🌞 <span>Energia Renovável</span></div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="renov-pct" id="renov-pct">—%</div>
+                        <div class="renov-label">do consumo coberto por renováveis</div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill fill-green" id="renov-bar" style="width:0%"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:.8rem;">
+                            <div class="zona-stat-item">
+                                <div class="zona-stat-val stat-yellow" id="renov-solar">—</div>
+                                <div class="zona-stat-lbl">Solar MW</div>
+                            </div>
+                            <div class="zona-stat-item">
+                                <div class="zona-stat-val stat-accent" id="renov-eolica">—</div>
+                                <div class="zona-stat-lbl">Eólica MW</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alertas -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">🚨 <span>Alertas & Ações IA</span></div>
+                        <div style="font-size:.6rem;color:var(--muted);font-family:var(--font-mono)" id="n-alertas">0
+                            alertas</div>
+                    </div>
+                    <div class="panel-body" style="padding:.8rem">
+                        <div class="alerta-list" id="alerta-list">
+                            <div style="text-align:center;color:var(--muted);font-size:.7rem;padding:1rem">Sem alertas
+                                ativos</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = 'http://localhost:8000';
+        let wsConn = null;
+        let dadosZonas = [];
+
+        // ── WebSocket ──────────────────────────────────────────────────────
+        function conectarWS() {
+            wsConn = new WebSocket(`ws://localhost:8000/ws`);
+
+            wsConn.onopen = () => {
+                document.getElementById('status-badge').innerHTML =
+                    '<div class="status-dot"></div><span>AO VIVO</span>';
+            };
+
+            wsConn.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.tipo === 'update') {
+                    document.getElementById('ciclo-badge').textContent = `Ciclo #${data.ciclo}`;
+                    document.getElementById('ultimo-update').textContent =
+                        new Date(data.timestamp).toLocaleTimeString('pt-BR');
+                    atualizarStats(data.stats);
+                    atualizarAlertas(data.alertas);
+                    atualizarEvento(data.stats.evento_ativo);
+                }
+            };
+
+            wsConn.onclose = () => {
+                document.getElementById('status-badge').innerHTML =
+                    '<div class="status-dot" style="background:var(--red)"></div><span style="color:var(--red)">DESCONECTADO</span>';
+                setTimeout(conectarWS, 3000);
+            };
+        }
+
+        // ── Polling de zonas (a cada 5s) ─────────────────────────────────
+        async function buscarZonas() {
+            try {
+                const r = await fetch(`${API}/api/zonas`);
+                dadosZonas = await r.json();
+                renderZonas(dadosZonas);
+                atualizarRenovavel(dadosZonas);
+                atualizarClima(dadosZonas);
+            } catch (e) {
+                document.getElementById('zonas-grid').innerHTML =
+                    `<div class="conn-error">❌ Backend offline. Rode: <code>python backend.py</code></div>`;
+            }
+        }
+
+        // ── Render zonas ──────────────────────────────────────────────────
+        function renderZonas(zonas) {
+            const grid = document.getElementById('zonas-grid');
+            grid.innerHTML = '';
+
+            zonas.forEach(z => {
+                const pct = z.pct_carga || 0;
+                const risco = z.risco_xgb || z.risco || 'BAIXO';
+                const fillClass = pct >= 92 ? 'fill-red' : pct >= 78 ? 'fill-orange' : pct >= 58 ? 'fill-yellow' : 'fill-green';
+                const cardClass = risco === 'CRÍTICO' ? 'risco-critico' : risco === 'ALTO' ? 'risco-alto' : risco === 'MÉDIO' ? 'risco-medio' : '';
+
+                // Sparkline previsão
+                const prev = z.previsao_mw || [];
+                const sparkSVG = prev.length > 0 ? gerarSparkline(prev) : '';
+
+                const anomTag = z.anomalia_tipo
+                    ? `<div class="anomalia-tag">⚠ ${z.anomalia_tipo.replace('_', ' ')}</div>` : '';
+                const evTag = z.evento
+                    ? `<div class="evento-tag">⚡ ${z.evento}</div>` : '';
+
+                const card = document.createElement('div');
+                card.className = `zona-card ${cardClass}`;
+                card.innerHTML = `
+      <div class="zona-header">
+        <div>
+          <div class="zona-nome">${z.zona_nome || z.zona_id}</div>
+          <div class="zona-perfil">${z.perfil || ''}</div>
+        </div>
+        <div>
+          <div class="risco-badge ${risco}">${risco}</div>
+          ${z.risco_lstm && z.risco_lstm !== 'AGUARDANDO'
+                        ? `<div class="risco-badge ${z.risco_lstm}" style="margin-top:.2rem;opacity:.7">PREV: ${z.risco_lstm}</div>` : ''}
+        </div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Carga</span>
+          <span>${pct.toFixed(1)}% de ${z.capacidade_mw} MW</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill ${fillClass}" style="width:${Math.min(pct, 100)}%"></div>
+        </div>
+      </div>
+
+      <div class="zona-stats">
+        <div class="zona-stat-item">
+          <div class="zona-stat-val">${(z.consumo_mw || 0).toFixed(2)}</div>
+          <div class="zona-stat-lbl">Consumo MW</div>
+        </div>
+        <div class="zona-stat-item">
+          <div class="zona-stat-val" style="color:var(--green)">${((z.geracao_total_mw || 0) * 1000).toFixed(0)}</div>
+          <div class="zona-stat-lbl">Renov kW</div>
+        </div>
+        <div class="zona-stat-item">
+          <div class="zona-stat-val" style="color:var(--accent)">${(z.conf_xgb || 0) * 100 > 0 ? ((z.conf_xgb || 0) * 100).toFixed(0) + '%' : '—'}</div>
+          <div class="zona-stat-lbl">Conf. IA</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;font-size:.62rem;font-family:var(--font-mono);color:var(--muted)">
+        <span>⚡ ${(z.frequencia_hz || 0).toFixed(2)} Hz</span>
+        <span>🔋 FP ${(z.fator_potencia || 0).toFixed(3)}</span>
+        <span>〰 THD ${(z.thd_tensao_pct || 0).toFixed(1)}%</span>
+        <span>🔌 VE ${z.ve_postos_em_uso || 0}/${z.ve_postos_total || 0}</span>
+      </div>
+
+      ${prev.length > 0 ? `
+        <div class="sparkline-wrap">
+          <div class="sparkline-label">Previsão próx. ${prev.length * 5} min</div>
+          ${sparkSVG}
+        </div>` : ''}
+
+      ${anomTag}${evTag}
+    `;
+                grid.appendChild(card);
+            });
+        }
+
+        function gerarSparkline(values) {
+            if (!values || values.length === 0) return '';
+            const w = 240, h = 32, pad = 2;
+            const min = Math.min(...values);
+            const max = Math.max(...values) || 1;
+            const range = max - min || 1;
+            const pts = values.map((v, i) => {
+                const x = pad + (i / (values.length - 1)) * (w - pad * 2);
+                const y = h - pad - ((v - min) / range) * (h - pad * 2);
+                return `${x},${y}`;
+            }).join(' ');
+            return `<svg viewBox="0 0 ${w} ${h}" class="sparkline">
+    <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>
+  </svg>`;
+        }
+
+        // ── Stats ──────────────────────────────────────────────────────────
+        function atualizarStats(s) {
+            if (!s) return;
+            setText('s-consumo', `${(s.consumo_total_mw || 0).toFixed(1)}`);
+            setText('s-consumo-sub', 'MW consumidos agora');
+            setText('s-renov', `${(s.pct_renovavel || 0).toFixed(1)}%`);
+            setText('s-renov-sub', `${(s.renovavel_total_mw || 0).toFixed(2)} MW de fontes limpas`);
+            setText('s-criticos', s.zonas_criticas || 0);
+            setText('s-crit-sub', `+ ${s.zonas_alto || 0} em ALTO`);
+            setText('s-anomalias', s.anomalias_ativas || 0);
+            setText('s-acoes', s.total_acoes || 0);
+            setText('s-economia', `${(s.economia_mwh || 0).toFixed(3)}`);
+        }
+
+        function atualizarAlertas(alertas) {
+            const list = document.getElementById('alerta-list');
+            document.getElementById('n-alertas').textContent = `${alertas.length} alertas`;
+            if (!alertas.length) {
+                list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.7rem;padding:1rem">✅ Sem alertas ativos</div>';
+                return;
+            }
+            list.innerHTML = alertas.slice(0, 6).map(a => `
+    <div class="alerta-item ${a.urgencia || 'MÉDIA'}">
+      <div class="alerta-nome">${a.tipo || ''} — ${a.zona || ''}</div>
+      <div class="alerta-desc">${a.descricao || ''}</div>
+      <div class="alerta-ts">${a.timestamp ? new Date(a.timestamp).toLocaleTimeString('pt-BR') : ''} · ${a.origem || ''}</div>
+    </div>
+  `).join('');
+        }
+
+        function atualizarEvento(evento) {
+            const banner = document.getElementById('evento-banner');
+            if (evento) {
+                document.getElementById('evento-texto').textContent = `⚡ EVENTO ATIVO: ${evento}`;
+                banner.style.display = 'flex';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function atualizarRenovavel(zonas) {
+            const solar = zonas.reduce((s, z) => (s + (z.solar_mw || 0)), 0);
+            const eolica = zonas.reduce((s, z) => (s + (z.eolica_mw || 0)), 0);
+            const consumo = zonas.reduce((s, z) => (s + (z.consumo_mw || 0)), 0);
+            const pct = consumo > 0 ? Math.min(100, (solar + eolica) / consumo * 100) : 0;
+            setText('renov-pct', `${pct.toFixed(1)}%`);
+            setText('renov-solar', solar.toFixed(3));
+            setText('renov-eolica', eolica.toFixed(3));
+            document.getElementById('renov-bar').style.width = `${pct}%`;
+        }
+
+        function atualizarClima(zonas) {
+            if (!zonas.length) return;
+            const z = zonas[0];
+            setText('c-temp', `${(z.clima_temp_c || 0).toFixed(1)}°`);
+            setText('c-irrad', `${(z.clima_irrad_wm2 || 0).toFixed(0)}`);
+        }
+
+        function setText(id, val) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        }
+
+
+        // ── Mapa de risco ─────────────────────────────────────────────
+        const COR_RISCO = {
+            'BAIXO':   '#22c55e', 'MÉDIO':  '#eab308',
+            'ALTO':    '#f97316', 'CRÍTICO':'#ef4444',
+            'AGUARDANDO':'#475569'
+        };
+        function atualizarMapa(zonas) {
+            document.getElementById('mapa-ts').textContent = new Date().toLocaleTimeString('pt-BR');
+            zonas.forEach(z => {
+                const chave = z.zona_id ? z.zona_id.replace('zona_','') : '';
+                const el    = document.getElementById('map-' + chave);
+                const pct   = document.getElementById('map-' + chave + '-pct');
+                const risco = z.risco_xgb || z.risco || 'BAIXO';
+                if (el) {
+                    el.className.baseVal = 'map-zona';
+                    el.style.fill   = (COR_RISCO[risco] || '#1e293b') + '33';
+                    el.style.stroke = COR_RISCO[risco] || '#334155';
+                }
+                if (pct) pct.textContent = (z.pct_carga||0).toFixed(0) + '%';
+            });
+        }
+
+        // ── Chart.js histórico ────────────────────────────────────────
+        const ctxHist = document.getElementById('chart-historico').getContext('2d');
+        const histLabels = Array.from({length:20}, (_,i) => `-${(19-i)*5}s`);
+        const histDatasets = {};
+        const CORES_ZONA = ['#3b82f6','#22c55e','#f97316','#a855f7','#06b6d4','#ef4444','#eab308','#ec4899'];
+        const chartHist = new Chart(ctxHist, {
+            type: 'line',
+            data: { labels: histLabels, datasets: [] },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { legend: { labels: { color:'#94a3b8', font:{size:9}, boxWidth:10 } } },
+                scales: {
+                    x: { ticks: { color:'#475569', font:{size:8} }, grid: { color:'#1e293b' } },
+                    y: { ticks: { color:'#475569', font:{size:8} }, grid: { color:'#1e293b' },
+                         title: { display:true, text:'MW', color:'#475569', font:{size:8} } }
+                }
+            }
+        });
+
+        let _zIdx = 0;
+        function atualizarGrafico(zonas) {
+            zonas.forEach(z => {
+                const zid  = z.zona_id;
+                const nome = (z.zona_nome||zid||'').replace('zona_','');
+                if (!histDatasets[zid]) {
+                    const cor = CORES_ZONA[_zIdx++ % CORES_ZONA.length];
+                    histDatasets[zid] = { label: nome, data: Array(20).fill(null),
+                        borderColor: cor, backgroundColor: cor+'22',
+                        borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: false };
+                    chartHist.data.datasets.push(histDatasets[zid]);
+                }
+                const ds = histDatasets[zid];
+                ds.data.shift();
+                ds.data.push(+(z.consumo_mw||0).toFixed(2));
+            });
+            chartHist.update('none');
+        }
+
+        // Intercepta buscarZonas para atualizar mapa e gráfico
+        const _origRenderZonas = renderZonas;
+        function renderZonas(zonas) {
+            _origRenderZonas(zonas);
+            atualizarMapa(zonas);
+            atualizarGrafico(zonas);
+        }
+
+        // ── Init ──────────────────────────────────────────────────────────
+        conectarWS();
+        buscarZonas();
+        setInterval(buscarZonas, 5000);
+    </script>
+</body>
+
+</html>

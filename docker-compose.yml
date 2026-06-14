@@ -1,0 +1,84 @@
+version: "3.8"
+
+services:
+
+  # ─────────────────────────────────────────
+  #  ZOOKEEPER — gerenciador do Kafka
+  # ─────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: citygrid_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────
+  #  KAFKA — fila de mensagens em tempo real
+  # ─────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: citygrid_kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168   # guarda 7 dias de dados
+      KAFKA_MESSAGE_MAX_BYTES: 1048576  # 1MB por mensagem
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────
+  #  INFLUXDB — banco de série temporal
+  # ─────────────────────────────────────────
+  influxdb:
+    image: influxdb:2.7
+    container_name: citygrid_influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: citygrid123
+      DOCKER_INFLUXDB_INIT_ORG: citygrid
+      DOCKER_INFLUXDB_INIT_BUCKET: citygrid
+      DOCKER_INFLUXDB_INIT_RETENTION: 30d  # retém 30 dias de dados
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: citygrid-token-2024
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────
+  #  GRAFANA — visualização profissional de séries temporais
+  #  Acesso: http://localhost:3000  (admin / citygrid123)
+  # ─────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: citygrid_grafana
+    depends_on:
+      - influxdb
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: citygrid123
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"        # demo mode — sem login
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/citygrid.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning  # datasources e dashboards
+    restart: unless-stopped
+
+volumes:
+  influxdb_data:
+  grafana_data:
