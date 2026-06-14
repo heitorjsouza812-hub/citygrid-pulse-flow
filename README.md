@@ -21,22 +21,41 @@ Simulador IoT → Kafka → Consumer → InfluxDB → Grafana
 
 ---
 
-## Instalação
+## Instalação e Execução
+
+### ▶ Modo Demo — Um comando só (sem Docker)
 
 ```bash
-# 1. Clone e instale dependências
+# 1. Instale as dependências
 pip install -r requirements.txt
 
-# 2. Suba a infraestrutura (Kafka + InfluxDB + Grafana)
+# 2. Treine os modelos (necessário apenas na 1ª vez — já feito)
+python treinamento_ml.py
+
+# 3. Inicie tudo com um único comando
+python iniciar.py
+```
+
+O `iniciar.py` sobe o simulador IoT, o motor de decisão e o backend automaticamente, e abre o dashboard no navegador.
+
+---
+
+### ▶ Modo Completo — Com Docker (Kafka + InfluxDB + Grafana)
+
+```bash
+# 1. Instale as dependências
+pip install -r requirements.txt
+
+# 2. Suba a infraestrutura
 docker-compose up -d
 
-# 3. Treine os modelos (necessário na 1ª vez)
+# 3. Treine os modelos (1ª vez)
 python treinamento_ml.py
 
 # 4. Em terminais separados:
 python simulador_iot.py    # terminal 1 — gera dados
 python consumer.py          # terminal 2 — persiste no InfluxDB
-python motor_decisao.py     # terminal 3 — decisões IA
+python motor_decisao.py     # terminal 3 — decisões IA via Kafka
 python backend.py           # terminal 4 — API REST + WebSocket
 
 # 5. Abra o dashboard
@@ -51,8 +70,9 @@ start front-end/dashboard.html
 |---|---|---|
 | Dashboard Web | `front-end/dashboard.html` | Monitor em tempo real |
 | Backend API | `http://localhost:8000` | REST + WebSocket |
-| Grafana | `http://localhost:3000` | Séries temporais |
-| InfluxDB | `http://localhost:8086` | Banco de dados |
+| Docs da API | `http://localhost:8000/docs` | Documentação interativa |
+| Grafana | `http://localhost:3000` | Séries temporais (modo completo) |
+| InfluxDB | `http://localhost:8086` | Banco de dados (modo completo) |
 
 ---
 

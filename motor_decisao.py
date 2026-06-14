@@ -47,6 +47,7 @@ init(autoreset=True)
 
 PASTA_MODELOS   = "modelos"
 LOG_DECISOES    = "logs/decisoes.jsonl"
+ARQUIVO_JSONL   = "dados_citygrid.jsonl"
 KAFKA_BOOTSTRAP = "localhost:9092"
 TOPICO_LEITURAS = "citygrid-leituras"
 GRUPO_CONSUMIDOR = "citygrid-motor-decisao-group"
@@ -745,6 +746,62 @@ def rodar_kafka():
         consumer.close()
 
 # ══════════════════════════════════════════════════════════════════
+#  MODO OFFLINE — lê o JSONL diretamente (sem precisar do Kafka)
+# ══════════════════════════════════════════════════════════════════
+
+def rodar_arquivo():
+    """Motor de decisão em modo offline — lê dados_citygrid.jsonl sem Kafka."""
+    motor = MotorDecisao()
+    ciclos_pendentes: dict = {}
+    pos = 0
+
+    # Começa do final do arquivo para não reprocessar dados antigos
+    if os.path.exists(ARQUIVO_JSONL):
+        with open(ARQUIVO_JSONL, "rb") as f:
+            f.seek(0, 2)
+            pos = f.tell()
+
+    print(Fore.CYAN + Style.BRIGHT + "\n╔" + "═"*60 + "╗")
+    print(Fore.CYAN + "║" + " CITYGRID BRAIN — MOTOR OFFLINE (sem Kafka) ".center(60) + "║")
+    print(Fore.CYAN + "╚" + "═"*60 + "╝" + Style.RESET_ALL)
+    print(f"  Fonte : {ARQUIVO_JSONL}")
+    print(f"  Log   : {LOG_DECISOES}")
+    print(f"  Zonas : {motor.zonas_esperadas} esperadas por ciclo")
+    print("  Aguardando novos dados... Ctrl+C para encerrar\n")
+
+    try:
+        while True:
+            if os.path.exists(ARQUIVO_JSONL):
+                with open(ARQUIVO_JSONL, "r", encoding="utf-8") as f:
+                    f.seek(pos)
+                    novas = f.readlines()
+                    pos   = f.tell()
+
+                for linha in novas:
+                    linha = linha.strip()
+                    if linha:
+                        try:
+                            dados = json.loads(linha)
+                            _adicionar_leitura(ciclos_pendentes, dados)
+                        except json.JSONDecodeError:
+                            pass
+
+            for ciclo_id in _ciclos_prontos(ciclos_pendentes, motor.zonas_esperadas):
+                _processar_ciclo_pendente(motor, ciclos_pendentes, ciclo_id)
+
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        for ciclo_id in sorted(ciclos_pendentes):
+            _processar_ciclo_pendente(motor, ciclos_pendentes, ciclo_id)
+        print(Fore.YELLOW + "\n  Motor offline encerrado." + Style.RESET_ALL)
+
+
+# ══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    rodar_kafka()
+    import sys
+    if "--modo=arquivo" in sys.argv or "--offline" in sys.argv:
+        rodar_arquivo()
+    else:
+        rodar_kafka()
