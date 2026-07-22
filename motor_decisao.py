@@ -4,14 +4,14 @@
 ║                        v1.0                                     ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-Camadas de decisão:
-  1. Heurísticas    → emergências imediatas (prioridade máxima)
-  2. XGBoost        → classifica risco atual de cada zona
-  3. LSTM           → prevê risco futuro (próximos 30 min)
-  4. Alg. Genético  → redistribuição ótima de carga entre zonas
+Camadas de recomendação experimental:
+  1. Heurísticas    → identifica condições que merecem atenção imediata
+  2. XGBoost        → estima o risco 30 minutos à frente
+  3. LSTM           → prevê consumo para os próximos 30 minutos
+  4. Alg. Genético  → calcula um cenário hipotético de redistribuição
 
-Cada decisão gera:
-  - Ação recomendada
+Cada recomendação gera:
+
   - Nível de urgência
   - Explicação em linguagem natural (XAI)
   - Log completo para auditoria
@@ -31,13 +31,20 @@ from collections import deque
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 from colorama import Fore, Style, init
-from kafka import KafkaConsumer
-from kafka.errors import NoBrokersAvailable
+
+try:  # Kafka é opcional no modo de feira baseado em arquivo.
+    from kafka import KafkaConsumer
+    from kafka.errors import NoBrokersAvailable
+except ImportError:  # pragma: no cover - exercido apenas em instalação mínima
+    KafkaConsumer = None
+
+    class NoBrokersAvailable(Exception):
+        pass
 
 import torch
 import torch.nn as nn
 import xgboost as xgb
-from sklearn.preprocessing import StandardScaler
+
 
 init(autoreset=True)
 
@@ -48,7 +55,7 @@ init(autoreset=True)
 PASTA_MODELOS   = "modelos"
 LOG_DECISOES    = "logs/decisoes.jsonl"
 ARQUIVO_JSONL   = "dados_citygrid.jsonl"
-KAFKA_BOOTSTRAP = "localhost:9092"
+KAFKA_BOOTSTRAP = os.getenv("CITYGRID_KAFKA_BOOTSTRAP", "localhost:9092")
 TOPICO_LEITURAS = "citygrid-leituras"
 GRUPO_CONSUMIDOR = "citygrid-motor-decisao-group"
 POLL_TIMEOUT_MS = 1000
@@ -91,9 +98,10 @@ class Acao:
     zona_alvo:   str
     descricao:   str
     explicacao:  str
-    confianca:   float
+    confianca:   Optional[float]
     origem:      str   # "heuristica" | "xgboost" | "lstm" | "genetico"
     timestamp:   str   = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+
 
 @dataclass
 class EstadoZona:
@@ -102,6 +110,7 @@ class EstadoZona:
     capacidade_mw:   float
     pct_carga:       float
     risco_atual:     str
+    risco_xgb:       str
     risco_futuro:    str
     consumo_previsto: list
     acoes:           list = field(default_factory=list)
@@ -200,7 +209,7 @@ def avaliar_heuristicas(zona_id: str, dados: dict) -> Optional[Acao]:
                     f"NUNCA cortar carga em zona crítica. Acionar gerador de emergência "
                     f"e redistribuir de outras zonas para manter fornecimento."
                 ),
-                confianca=1.0,
+                confianca=None,
                 origem="heuristica",
             )
         if pct >= 85:
@@ -213,22 +222,22 @@ def avaliar_heuristicas(zona_id: str, dados: dict) -> Optional[Acao]:
                     f"Regra R0: zona crítica (hospitais/UPAs) com pct_carga={pct:.1f}% >= 85%. "
                     f"Prioridade máxima de fornecimento. Preparar geração de backup."
                 ),
-                confianca=1.0,
+                confianca=None,
                 origem="heuristica",
             )
 
     # ── Regra R1 — Sobrecarga crítica (somente zonas NÃO-críticas) ──────────
     if pct >= 95 and perfil != "critico":
         return Acao(
-            tipo="CORTE_CARGA_EMERGENCIA",
+            tipo="RECOMENDAR_REDUCAO_CARGA",
             urgencia="CRÍTICA",
             zona_alvo=zona_id,
-            descricao=f"Zona em {pct:.1f}% da capacidade — corte imediato de carga não essencial",
+            descricao=f"Zona em {pct:.1f}% da capacidade — recomendar redução de carga não essencial",
             explicacao=(
                 f"Regra R1: pct_carga={pct:.1f}% >= 95%. "
-                f"Risco de dano ao transformador. Ação automática sem esperar ML."
+                f"Risco de dano ao transformador; recomenda-se revisão humana imediata, sem execução automática."
             ),
-            confianca=1.0,
+            confianca=None,
             origem="heuristica",
         )
 
@@ -243,7 +252,7 @@ def avaliar_heuristicas(zona_id: str, dados: dict) -> Optional[Acao]:
                 f"Regra R2: frequencia_hz={freq:.3f} Hz fora do limite precário ANEEL PRODIST M8. "
                 f"Indica desequilíbrio entre geração e carga na rede."
             ),
-            confianca=1.0,
+            confianca=None,
             origem="heuristica",
         )
 
@@ -258,7 +267,7 @@ def avaliar_heuristicas(zona_id: str, dados: dict) -> Optional[Acao]:
                 f"Regra R3: thd_tensao_pct={thd:.1f}% > 8% (ANEEL PRODIST M8, Seção 3.6). "
                 f"Distorção harmônica pode danificar equipamentos e causar falhas."
             ),
-            confianca=1.0,
+            confianca=None,
             origem="heuristica",
         )
 
@@ -273,7 +282,7 @@ def avaliar_heuristicas(zona_id: str, dados: dict) -> Optional[Acao]:
                 f"Regra R4: fator_potencia={fp:.3f} menor que 0,92 (Res. ANEEL 456/2000). "
                 f"Gera penalidade tarifária e perdas na transmissão."
             ),
-            confianca=1.0,
+            confianca=None,
             origem="heuristica",
         )
 
@@ -288,7 +297,7 @@ def avaliar_heuristicas(zona_id: str, dados: dict) -> Optional[Acao]:
                 f"Regra R5: consumo_mw=0.0 em zona não-crítica. "
                 f"Verificar medidor e continuidade do fornecimento (ANEEL — DEC/FEC)."
             ),
-            confianca=0.85,
+            confianca=None,
             origem="heuristica",
         )
 
@@ -298,13 +307,27 @@ def avaliar_heuristicas(zona_id: str, dados: dict) -> Optional[Acao]:
 #  CAMADA 2 — XGBOOST
 # ══════════════════════════════════════════════════════════════════
 
+
+def extrair_instante_amostra(dados: dict) -> datetime:
+    """Lê o relógio da simulação; usa o relógio local apenas como fallback explícito."""
+    valor = dados.get("timestamp")
+    if valor:
+        try:
+            return datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+        except ValueError:
+            logging.warning("Timestamp inválido na amostra: %s", valor)
+    return datetime.now()
+
+
 def avaliar_xgboost(zona_id: str, dados: dict, modelo_xgb) -> tuple:
-    """Classifica o risco atual da zona."""
-    hora = datetime.now().hour
+    """Estima, de forma experimental, o risco 30 minutos à frente."""
+    instante = extrair_instante_amostra(dados)
+    hora = instante.hour
+    dados = dict(dados)
     dados["hora"]      = hora
     dados["hora_sin"]  = np.sin(2 * np.pi * hora / 24)
     dados["hora_cos"]  = np.cos(2 * np.pi * hora / 24)
-    dados["dia_semana"]= datetime.now().weekday()
+    dados["dia_semana"]= instante.weekday()
     dados["anomalia_flag"] = 1 if dados.get("anomalia_tipo") else 0
     dados["evento_flag"]   = 1 if dados.get("evento") else 0
 
@@ -317,8 +340,8 @@ def avaliar_xgboost(zona_id: str, dados: dict, modelo_xgb) -> tuple:
     distribuicao = {CLASSES_RISCO[i]: round(float(p), 3) for i, p in enumerate(proba)}
 
     explicacao = (
-        f"XGBoost classificou como {risco} com {confianca*100:.1f}% de confiança. "
-        f"Features mais relevantes: pct_carga={dados.get('pct_carga',0):.1f}%, "
+        f"XGBoost estimou risco {risco} para 30 minutos à frente, com score bruto de {confianca*100:.1f}%. "
+        f"Features de entrada: pct_carga={dados.get('pct_carga',0):.1f}%, "
         f"anomalia={'sim' if dados.get('anomalia_flag') else 'não'}, "
         f"temperatura={dados.get('clima_temp_c',0):.1f}°C. "
         f"Distribuição: {distribuicao}"
@@ -384,9 +407,9 @@ def algoritmo_genetico(estados_zonas: dict,
                        geracoes: int = 50,
                        populacao: int = 30) -> dict:
     """
-    Otimiza a distribuição de carga entre zonas.
-    Minimiza: zonas sobrecarregadas e desperdício de capacidade.
-    Retorna: alocação percentual sugerida por zona.
+    Calcula um cenário experimental de distribuição entre zonas.
+    Não representa fluxo de potência nem garante uma solução operacionalmente válida.
+    Retorna: fração hipotética por zona.
     """
     zonas     = list(estados_zonas.keys())
     n         = len(zonas)
@@ -457,14 +480,17 @@ class MotorDecisao:
         print(Fore.GREEN + "\n  ✅ Motor de Decisão inicializado e pronto!\n")
 
     def processar_ciclo(self, leituras: list, ciclo_id: Optional[int] = None) -> list:
-        """Processa um ciclo completo de leituras e retorna lista de ações com métricas de latência."""
+        """Processa um ciclo completo e retorna recomendações com métricas de latência."""
         t_inicio     = time.monotonic()
         self.ciclo   = ciclo_id if ciclo_id is not None else self.ciclo + 1
         acoes_ciclo  = []
         estados      = {}
+        timestamps_zona = {}
 
         for dados in leituras:
             zona_id = dados["zona_id"]
+            if dados.get("timestamp"):
+                timestamps_zona[zona_id] = str(dados["timestamp"])
 
             # Atualiza histórico
             if zona_id not in self.historicos:
@@ -475,7 +501,7 @@ class MotorDecisao:
             acao_heur = avaliar_heuristicas(zona_id, dados)
 
             # ── Camada 2: XGBoost ──────────────────────────────────
-            risco_atual, conf_xgb, expl_xgb = avaliar_xgboost(
+            risco_xgb, conf_xgb, expl_xgb = avaliar_xgboost(
                 zona_id, dados, self.modelo_xgb
             )
 
@@ -494,7 +520,8 @@ class MotorDecisao:
                 consumo_mw      = dados.get("consumo_mw", 0),
                 capacidade_mw   = dados.get("capacidade_mw", 1),
                 pct_carga       = dados.get("pct_carga", 0),
-                risco_atual     = risco_atual,
+                risco_atual     = dados.get("risco", "BAIXO"),
+                risco_xgb       = risco_xgb,
                 risco_futuro    = risco_futuro,
                 consumo_previsto= consumo_previsto,
             )
@@ -505,12 +532,12 @@ class MotorDecisao:
                 acoes_ciclo.append(acao_heur)
                 estados[zona_id].acoes.append(acao_heur)
 
-            elif risco_atual in ["CRÍTICO", "ALTO"]:
+            elif risco_xgb in ["CRÍTICO", "ALTO"]:
                 acao = Acao(
-                    tipo       = "REDISTRIBUIR_CARGA",
-                    urgencia   = risco_atual,
+                    tipo       = "REVISAR_RISCO_PREVISTO_XGB",
+                    urgencia   = risco_xgb,
                     zona_alvo  = zona_id,
-                    descricao  = f"Zona em risco {risco_atual} — redistribuir carga",
+                    descricao  = f"XGBoost prevê risco {risco_xgb} em 30 min — recomendar revisão humana",
                     explicacao = expl_xgb,
                     confianca  = conf_xgb,
                     origem     = "xgboost",
@@ -518,14 +545,14 @@ class MotorDecisao:
                 acoes_ciclo.append(acao)
                 estados[zona_id].acoes.append(acao)
 
-            elif risco_futuro in ["CRÍTICO", "ALTO"] and risco_atual == "MÉDIO":
+            elif risco_futuro in ["CRÍTICO", "ALTO"] and estados[zona_id].risco_atual == "MÉDIO":
                 acao = Acao(
                     tipo       = "ACAO_PREVENTIVA",
                     urgencia   = "MÉDIA",
                     zona_alvo  = zona_id,
                     descricao  = f"Previsão de risco {risco_futuro} em ~{HORIZONTE_LSTM*5} min — agir preventivamente",
                     explicacao = expl_lstm,
-                    confianca  = 0.75,
+                    confianca  = None,
                     origem     = "lstm",
                 )
                 acoes_ciclo.append(acao)
@@ -540,15 +567,15 @@ class MotorDecisao:
             cap_total  = sum(e.capacidade_mw for e in estados.values())
             alocacao   = algoritmo_genetico(estados, cap_total)
             acao_ag    = Acao(
-                tipo       = "OTIMIZACAO_GENETICA",
+                tipo       = "EXPERIMENTO_DISTRIBUICAO_GENETICA",
                 urgencia   = "MÉDIA",
                 zona_alvo  = "TODAS",
-                descricao  = f"Redistribuição ótima calculada para {len(zonas_risco)} zonas em risco",
-                explicacao = (f"Algoritmo Genético otimizou distribuição de {cap_total:.1f} MW total. "
-                              f"Alocação sugerida: "
+                descricao  = f"Cenário hipotético calculado para {len(zonas_risco)} zonas em risco atual",
+                explicacao = (f"Algoritmo genético gerou uma distribuição experimental de {cap_total:.1f} MW. "
+                              f"O cálculo não modela fluxo de potência nem executa comandos. Frações: "
                               + ", ".join([f"{z.replace('zona_','')}: {v*100:.1f}%"
                                            for z, v in alocacao.items()])),
-                confianca  = 0.82,
+                confianca  = None,
                 origem     = "genetico",
             )
             acoes_ciclo.append(acao_ag)
@@ -564,9 +591,13 @@ class MotorDecisao:
         self.stats["latencia_max_ms"]   = round(max(lats), 2)
         self.stats["latencia_atual_ms"] = latencia_ms
 
+        timestamp_ciclo = max(timestamps_zona.values()) if timestamps_zona else None
         for acao in acoes_ciclo:
+            timestamp_acao = timestamps_zona.get(acao.zona_alvo, timestamp_ciclo)
+            if timestamp_acao:
+                acao.timestamp = timestamp_acao
             self.stats["total_acoes"] += 1
-            self.stats["por_origem"][acao.origem]     = self.stats["por_origem"].get(acao.origem, 0) + 1
+            self.stats["por_origem"][acao.origem] = self.stats["por_origem"].get(acao.origem, 0) + 1
             self.stats["por_urgencia"][acao.urgencia] = self.stats["por_urgencia"].get(acao.urgencia, 0) + 1
             self.log_acoes.appendleft(acao)
             self._salvar_log(acao, latencia_ms)
@@ -636,6 +667,10 @@ class MotorDecisao:
 # ══════════════════════════════════════════════════════════════════
 
 def conectar_kafka(tentativas: int = 10) -> KafkaConsumer:
+    if KafkaConsumer is None:
+        print(Fore.RED + "  [ERRO] Dependências Kafka não instaladas." + Style.RESET_ALL)
+        print("  Execute: pip install -r requirements-streaming.txt")
+        raise SystemExit(1)
     for i in range(tentativas):
         try:
             consumer = KafkaConsumer(

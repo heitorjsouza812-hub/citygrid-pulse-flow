@@ -30,7 +30,11 @@
       "gridPos": { "h": 9, "w": 16, "x": 0, "y": 1 },
       "id": 1,
       "options": {
-        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom" },
+        "legend": {
+          "calcs": ["mean", "max", "last"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
         "tooltip": { "mode": "multi" }
       },
       "targets": [
@@ -111,7 +115,11 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 11 },
       "id": 3,
       "options": {
-        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "table", "placement": "bottom" },
+        "legend": {
+          "calcs": ["mean", "min", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
         "tooltip": { "mode": "multi" }
       },
       "targets": [
@@ -199,7 +207,11 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
       "id": 6,
       "options": {
-        "legend": { "calcs": ["mean", "max", "min"], "displayMode": "table", "placement": "bottom" },
+        "legend": {
+          "calcs": ["mean", "max", "min"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
         "tooltip": { "mode": "single" }
       },
       "targets": [

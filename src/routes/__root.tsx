@@ -77,20 +77,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CityGrid Brain — Smart City Energy Monitor" },
-      { name: "description", content: "Dashboard de monitoramento e otimização de rede elétrica urbana em tempo real com IA (XGBoost + LSTM)." },
+      { title: "CityGrid Brain — Protótipo de Rede Urbana Simulada" },
+      {
+        name: "description",
+        content:
+          "Protótipo experimental com dados sintéticos para monitoramento e recomendações simuladas em uma rede elétrica urbana.",
+      },
       { name: "author", content: "CityGrid Brain" },
-      { property: "og:title", content: "CityGrid Brain — Smart City Energy Monitor" },
-      { property: "og:description", content: "Monitoramento de rede elétrica urbana em tempo real com IA." },
+      { property: "og:title", content: "CityGrid Brain — Protótipo Experimental" },
+      {
+        property: "og:description",
+        content: "Demonstração científica com dados sintéticos e simulação acelerada.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
-    links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Space+Mono:wght@400;700&display=swap" },
-      { rel: "stylesheet", href: appCss },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -113,14 +115,17 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 import { Header } from "../components/Header";
+import { CityGridProvider } from "../lib/citygrid-context";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Header />
-      <Outlet />
+      <CityGridProvider>
+        <Header />
+        <Outlet />
+      </CityGridProvider>
     </QueryClientProvider>
   );
 }

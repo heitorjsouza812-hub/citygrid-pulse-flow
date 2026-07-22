@@ -20,8 +20,10 @@ Estrutura no InfluxDB:
 """
 
 import json
-import time
+import os
 import sys
+import time
+
 from datetime import datetime, timezone
 from kafka import KafkaConsumer
 from kafka.errors import NoBrokersAvailable
@@ -36,15 +38,15 @@ init(autoreset=True)
 #  CONFIGURAÇÃO
 # ══════════════════════════════════════════════════════════════════
 
-KAFKA_BOOTSTRAP    = "localhost:9092"
+KAFKA_BOOTSTRAP    = os.getenv("CITYGRID_KAFKA_BOOTSTRAP", "localhost:9092")
 TOPICO_LEITURAS    = "citygrid-leituras"
 TOPICO_ALERTAS     = "citygrid-alertas"
 GRUPO_CONSUMIDOR   = "citygrid-consumer-group"
 
-INFLUX_URL         = "http://localhost:8086"
-INFLUX_TOKEN       = "citygrid-token-2024"
-INFLUX_ORG         = "citygrid"
-INFLUX_BUCKET      = "citygrid"
+INFLUX_URL         = os.getenv("CITYGRID_INFLUX_URL", "http://localhost:8086")
+INFLUX_TOKEN       = os.getenv("CITYGRID_INFLUX_TOKEN")
+INFLUX_ORG         = os.getenv("CITYGRID_INFLUX_ORG", "citygrid")
+INFLUX_BUCKET      = os.getenv("CITYGRID_INFLUX_BUCKET", "citygrid")
 
 # ══════════════════════════════════════════════════════════════════
 #  CAMPOS DO INFLUXDB
@@ -108,11 +110,16 @@ def conectar_kafka(tentativas: int = 10) -> KafkaConsumer:
 # ══════════════════════════════════════════════════════════════════
 
 def conectar_influx():
+    if not INFLUX_TOKEN:
+        print(Fore.RED + "  ❌ CITYGRID_INFLUX_TOKEN não definido." + Style.RESET_ALL)
+        print(Fore.YELLOW + "  👉 Copie .env.example para .env e exporte as variáveis." + Style.RESET_ALL)
+        sys.exit(1)
     try:
-        client    = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
+        client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
         write_api = client.write_api(write_options=SYNCHRONOUS)
         # Testa a conexão
-        client.ping()
+        if not client.ping():
+            raise RuntimeError("health check do InfluxDB retornou false")
         print(Fore.GREEN + f"  ✅ InfluxDB conectado em {INFLUX_URL}" + Style.RESET_ALL)
         print(Fore.GREEN + f"     Org: {INFLUX_ORG} | Bucket: {INFLUX_BUCKET}" + Style.RESET_ALL)
         return client, write_api
@@ -124,6 +131,20 @@ def conectar_influx():
 # ══════════════════════════════════════════════════════════════════
 #  CONVERSÃO PARA POINT DO INFLUXDB
 # ══════════════════════════════════════════════════════════════════
+
+def extrair_timestamp(dados: dict) -> datetime:
+    """Converte o timestamp simulado para UTC sem inventar um horário de substituição."""
+    valor = dados.get("timestamp")
+    if not valor:
+        raise ValueError("amostra sem timestamp simulado")
+    try:
+        instante = datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"timestamp simulado inválido: {valor}") from exc
+    if instante.tzinfo is None:
+        instante = instante.replace(tzinfo=timezone.utc)
+    return instante.astimezone(timezone.utc)
+
 
 def montar_point(dados: dict) -> Point:
     """
@@ -162,13 +183,8 @@ def montar_point(dados: dict) -> Point:
             except (TypeError, ValueError):
                 pass
 
-    # Timestamp da leitura original
-    try:
-        ts = datetime.strptime(dados["timestamp"], "%Y-%m-%dT%H:%M:%S")
-        ts = ts.replace(tzinfo=timezone.utc)
-        point = point.time(ts, WritePrecision.SECONDS)
-    except Exception:
-        point = point.time(datetime.now(timezone.utc), WritePrecision.SECONDS)
+    # Timestamp da leitura original; amostras inválidas são rejeitadas.
+    point = point.time(extrair_timestamp(dados), WritePrecision.S)
 
     return point
 
@@ -243,7 +259,7 @@ def iniciar_consumer():
 
   Para visualizar os dados:
     → Acesse http://localhost:8086
-    → Login: admin / citygrid123
+    → Use as credenciais definidas no arquivo .env
     → Bucket: citygrid
 
   Aguardando mensagens... Ctrl+C para encerrar

@@ -7,10 +7,10 @@ datasources:
     url: http://influxdb:8086
     jsonData:
       version: Flux
-      organization: citygrid
-      defaultBucket: citygrid
+      organization: $CITYGRID_INFLUX_ORG
+      defaultBucket: $CITYGRID_INFLUX_BUCKET
       tlsSkipVerify: true
     secureJsonData:
-      token: citygrid-token-2024
+      token: $CITYGRID_INFLUX_TOKEN
     isDefault: true
-    editable: true
+    editable: false

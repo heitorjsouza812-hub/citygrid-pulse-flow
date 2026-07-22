@@ -4,7 +4,7 @@
 # ── Core ML ─────────────────────────────────────────────────────
 torch>=2.1.0
 xgboost>=2.0.0
-scikit-learn>=1.4.0
+scikit-learn==1.8.0
 numpy>=1.26.0
 pandas>=2.1.0
 
@@ -17,7 +17,7 @@ uvicorn[standard]>=0.27.0
 websockets>=12.0
 
 # ── Streaming / Mensageria ───────────────────────────────────────
-kafka-python>=2.0.2
+kafka-python==2.3.1
 
 # ── Banco de Dados de Série Temporal ────────────────────────────
 influxdb-client>=1.40.0
@@ -29,6 +29,7 @@ seaborn>=0.13.0
 # ── Terminal ─────────────────────────────────────────────────────
 colorama>=0.4.6
 
-# ── Utilitários ──────────────────────────────────────────────────
+# ── Utilitários / testes ──────────────────────────────────────────
 python-dateutil>=2.9.0
 tqdm>=4.66.0
+pytest==8.4.2

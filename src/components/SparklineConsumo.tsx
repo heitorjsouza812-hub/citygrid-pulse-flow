@@ -1,13 +1,23 @@
 import { useId } from "react";
 
-export function SparklineConsumo({ data, width = 120, height = 32 }: { data: number[]; width?: number; height?: number }) {
+export function SparklineConsumo({
+  data,
+  width = 120,
+  height = 32,
+}: {
+  data: number[];
+  width?: number;
+  height?: number;
+}) {
   const reactId = useId();
   if (!data?.length) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
   const step = width / (data.length - 1);
-  const points = data.map((v, i) => `${i * step},${height - ((v - min) / range) * (height - 4) - 2}`).join(" ");
+  const points = data
+    .map((v, i) => `${i * step},${height - ((v - min) / range) * (height - 4) - 2}`)
+    .join(" ");
   const areaPoints = `0,${height} ${points} ${width},${height}`;
   const gradId = `sparkGrad-${reactId.replace(/:/g, "")}`;
   return (

@@ -31,9 +31,10 @@ import json
 import csv
 import os
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import deque
 from typing import Optional
+
 from colorama import Fore, Style, init
 
 init(autoreset=True)
@@ -43,10 +44,19 @@ init(autoreset=True)
 # ══════════════════════════════════════════════════════════════════
 
 INTERVALO_SEGUNDOS = 5
+INTERVALO_SIMULADO_MINUTOS = 5
 SALVAR_JSONL       = True
 SALVAR_CSV         = True
 ARQUIVO_JSONL      = "dados_citygrid.jsonl"
 ARQUIVO_CSV        = "dados_citygrid.csv"
+SEED               = int(os.getenv("CITYGRID_SEED", "42"))
+INICIO_SIMULADO    = datetime.fromisoformat(
+    os.getenv("CITYGRID_INICIO_SIMULADO", "2026-01-01T00:00:00")
+)
+
+# A mesma seed reproduz a mesma sequência sintética. O relógio da simulação
+# continua configurado no laço principal; a seed controla apenas a aleatoriedade.
+random.seed(SEED)
 
 # ══════════════════════════════════════════════════════════════════
 #  ZONAS DA CIDADE — VALORES REAIS (cidade BR ~400k hab.)
@@ -230,12 +240,22 @@ CURVAS = {
 
 estado = {
     "ciclo":               0,
+    "tempo_simulado":      INICIO_SIMULADO,
     "evento_ativo":        None,
     "evento_ciclos_rest":  0,
     "anomalias_ativas":    {},
     "alertas":             deque(maxlen=20),
     "gen_renovavel_mwh":   0.0,
 }
+
+
+def agora_simulado() -> datetime:
+    return estado["tempo_simulado"]
+
+
+def avancar_tempo_simulado() -> datetime:
+    estado["tempo_simulado"] += timedelta(minutes=INTERVALO_SIMULADO_MINUTOS)
+    return estado["tempo_simulado"]
 
 # Estado persistente das baterias — SoC com inércia física real
 # Inicializado com valores aleatórios realistas (50-75%) uma única vez
@@ -246,8 +266,9 @@ _estado_baterias: dict = {}
 # ══════════════════════════════════════════════════════════════════
 
 def gerar_clima() -> dict:
-    hora = datetime.now().hour
-    mes  = datetime.now().month
+    instante = agora_simulado()
+    hora = instante.hour
+    mes  = instante.month
 
     if mes in [12,1,2,3]:   base_temp = 28.5
     elif mes in [6,7,8]:     base_temp = 16.0
@@ -374,7 +395,7 @@ def gerar_ve(num_postos: int) -> dict:
     Taxa de ocupação típica: 20–65% dependendo da hora
     Ref: ABVE — Associação Brasileira do Veículo Elétrico
     """
-    hora = datetime.now().hour
+    hora = agora_simulado().hour
     if 18 <= hora <= 22:     taxa = random.uniform(0.40, 0.65)
     elif 8 <= hora <= 12:    taxa = random.uniform(0.25, 0.45)
     elif 0 <= hora <= 5:     taxa = random.uniform(0.05, 0.15)
@@ -406,7 +427,7 @@ def gerar_bateria(cap_mwh: float, pct_carga: float, zona_id: str = "") -> dict:
 
     Ref: ABNT NBR 16782, IEC 62619 (sistemas de armazenamento Li-Ion)
     """
-    hora = datetime.now().hour
+    hora = agora_simulado().hour
     if 18 <= hora <= 21:     modo = "DESCARGANDO"
     elif 1 <= hora <= 6:     modo = "CARREGANDO"
     elif pct_carga > 85:     modo = "DESCARGANDO"
@@ -416,10 +437,9 @@ def gerar_bateria(cap_mwh: float, pct_carga: float, zona_id: str = "") -> dict:
     # Recupera SoC anterior ou inicializa com valor realista
     soc_atual = _estado_baterias.get(zona_id, random.uniform(50, 75))
 
-    # Cálculo de variação de SoC com inércia física
-    # Taxa de 0,5C sobre delta_t = INTERVALO_SEGUNDOS
+    # Taxa de 0,5C aplicada ao intervalo do relógio simulado.
     eficiencia = 0.93
-    dt_h       = INTERVALO_SEGUNDOS / 3600.0  # fração de hora
+    dt_h       = INTERVALO_SIMULADO_MINUTOS / 60.0
     taxa_c     = 0.5 * cap_mwh  # MW (0,5C)
 
     if modo == "CARREGANDO":
@@ -477,7 +497,7 @@ def verificar_anomalia(zona_id: str) -> Optional[dict]:
 
 def alertar(origem: str, msg: str, grav: str):
     estado["alertas"].appendleft({
-        "ts":      datetime.now().strftime("%H:%M:%S"),
+        "ts":      agora_simulado().strftime("%H:%M:%S"),
         "origem":  origem,
         "msg":     msg,
         "grav":    grav,
@@ -488,7 +508,7 @@ def alertar(origem: str, msg: str, grav: str):
 # ══════════════════════════════════════════════════════════════════
 
 def calcular_consumo(zona_id: str, zona: dict, clima: dict, anomalia: Optional[dict]) -> float:
-    hora   = datetime.now().hour
+    hora   = agora_simulado().hour
     fator  = CURVAS[zona["perfil"]][hora]
     temp   = clima["temperatura_c"]
 
@@ -557,13 +577,13 @@ def gerar_leitura(zona_id: str, zona: dict, clima: dict) -> dict:
     if risco in ["ALTO", "CRÍTICO"]:
         alertar(f"RISCO [{zona['nome_display']}]", f"Carga em {pct}% da capacidade", risco)
 
-    estado["gen_renovavel_mwh"] += gen_total * (INTERVALO_SEGUNDOS / 3600)
+    estado["gen_renovavel_mwh"] += gen_total * (INTERVALO_SIMULADO_MINUTOS / 60)
 
     return {
         "zona_id":              zona_id,
         "zona_nome":            zona["nome_display"],
         "perfil":               zona["perfil"],
-        "timestamp":            datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "timestamp":            agora_simulado().strftime("%Y-%m-%dT%H:%M:%S"),
         "ciclo":                estado["ciclo"],
         "consumo_mw":           consumo,
         "consumo_liquido_mw":   liq,
@@ -642,7 +662,7 @@ def barra(pct: float, w: int = 18) -> str:
 
 def dashboard(leituras: list, clima: dict):
     os.system("cls" if os.name == "nt" else "clear")
-    ts = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    ts = agora_simulado().strftime("%d/%m/%Y %H:%M:%S")
 
     # Cabeçalho
     print(Fore.CYAN + Style.BRIGHT + "╔" + "═"*76 + "╗")
@@ -767,6 +787,7 @@ def iniciar():
                 salvar(l)
 
             dashboard(leituras, clima)
+            avancar_tempo_simulado()
             time.sleep(INTERVALO_SEGUNDOS)
 
     except KeyboardInterrupt:

@@ -1,5 +1,6 @@
 import { urgenciaColor } from "@/lib/risco";
-import type { Alerta } from "@/lib/mock-data";
+import type { Recomendacao } from "@/lib/citygrid-types";
+import { formatarHorarioSimulado } from "@/lib/citygrid-api";
 import { Cpu, Brain, Zap, Dna } from "lucide-react";
 
 const origemIcon: Record<string, React.ReactNode> = {
@@ -9,14 +10,13 @@ const origemIcon: Record<string, React.ReactNode> = {
   genetico: <Dna className="h-3 w-3" />,
 };
 
-function timeAgo(iso: string) {
-  const diff = (Date.now() - new Date(iso).getTime()) / 60_000;
-  if (diff < 1) return "agora";
-  if (diff < 60) return `${Math.floor(diff)}m atrás`;
-  return `${Math.floor(diff / 60)}h atrás`;
-}
-
-export function FeedAlertas({ alertas, maxHeight = "32rem" }: { alertas: Alerta[]; maxHeight?: string }) {
+export function FeedAlertas({
+  alertas,
+  maxHeight = "32rem",
+}: {
+  alertas: Recomendacao[];
+  maxHeight?: string;
+}) {
   return (
     <div className="overflow-y-auto pr-1 -mr-1" style={{ maxHeight }}>
       <div className="divide-y divide-border/60 rounded-md overflow-hidden border border-border/60 bg-surface/20">
@@ -39,25 +39,35 @@ export function FeedAlertas({ alertas, maxHeight = "32rem" }: { alertas: Alerta[
                   >
                     {a.urgencia}
                   </span>
-                  <span className="text-[10px] text-muted-foreground truncate font-mono">{a.zona_nome}</span>
+                  <span className="text-[10px] text-muted-foreground truncate font-mono">
+                    {a.zona_nome}
+                  </span>
                 </div>
-                <span className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">{timeAgo(a.ts)}</span>
+                <span className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">
+                  sim. {formatarHorarioSimulado(a.ts)}
+                </span>
               </div>
-              <div className="text-[13px] font-display font-bold text-foreground leading-tight">{a.tipo}</div>
+              <div className="text-[13px] font-display font-bold text-foreground leading-tight">
+                {a.tipo}
+              </div>
               <div className="text-[11px] text-muted-foreground mt-0.5">{a.descricao}</div>
               <div className="flex items-center justify-between mt-2 text-[10px] font-mono">
                 <span className="inline-flex items-center gap-1 uppercase tracking-[0.15em] text-muted-foreground">
                   {origemIcon[a.origem]} {a.origem}
                 </span>
-                <span
-                  className="px-1.5 py-0.5 rounded tabular-nums"
-                  style={{
-                    color: "var(--risk-low)",
-                    backgroundColor: "color-mix(in oklab, var(--risk-low) 10%, transparent)",
-                  }}
-                >
-                  conf {(a.confianca * 100).toFixed(0)}%
-                </span>
+                {a.score == null ? (
+                  <span className="text-muted-foreground">score não calibrado</span>
+                ) : (
+                  <span
+                    className="px-1.5 py-0.5 rounded tabular-nums"
+                    style={{
+                      color: "var(--risk-low)",
+                      backgroundColor: "color-mix(in oklab, var(--risk-low) 10%, transparent)",
+                    }}
+                  >
+                    score {(a.score * 100).toFixed(0)}%
+                  </span>
+                )}
               </div>
             </div>
           );

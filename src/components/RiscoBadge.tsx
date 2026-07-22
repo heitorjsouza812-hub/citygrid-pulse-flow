@@ -1,7 +1,7 @@
 import { riscoColor } from "@/lib/risco";
-import type { Risco } from "@/lib/mock-data";
+import type { EstadoPrevisao } from "@/lib/citygrid-types";
 
-export function RiscoBadge({ risco, prev = false }: { risco: Risco | "AGUARDANDO"; prev?: boolean }) {
+export function RiscoBadge({ risco, label }: { risco: EstadoPrevisao; label?: string }) {
   const isCrit = risco === "CRÍTICO";
   const color = riscoColor(risco);
   return (
@@ -13,7 +13,7 @@ export function RiscoBadge({ risco, prev = false }: { risco: Risco | "AGUARDANDO
         border: `1px solid color-mix(in oklab, ${color} 40%, transparent)`,
       }}
     >
-      {prev && <span className="opacity-60">PREV:</span>}
+      {label && <span className="opacity-60">{label}:</span>}
       {risco}
     </span>
   );

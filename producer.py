@@ -31,10 +31,10 @@ init(autoreset=True)
 #  CONFIGURAÇÃO
 # ══════════════════════════════════════════════════════════════════
 
-KAFKA_BOOTSTRAP    = "localhost:9092"
+KAFKA_BOOTSTRAP    = os.getenv("CITYGRID_KAFKA_BOOTSTRAP", "localhost:9092")
 TOPICO_LEITURAS    = "citygrid-leituras"
 TOPICO_ALERTAS     = "citygrid-alertas"
-INTERVALO_SEGUNDOS = 5
+INTERVALO_SEGUNDOS = sim.INTERVALO_SEGUNDOS
 
 # ══════════════════════════════════════════════════════════════════
 #  CONEXÃO COM KAFKA
@@ -86,10 +86,11 @@ def publicar_alertas(producer: KafkaProducer):
             topic=TOPICO_ALERTAS,
             key="alerta",
             value={
-                "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                "timestamp": sim.agora_simulado().isoformat(timespec="seconds"),
                 **alerta
             }
         )
+
 
 def exibir_status(ciclo: int, leituras: list, msgs_enviadas: int):
     """Exibe status resumido no terminal."""
@@ -152,6 +153,7 @@ def iniciar_producer():
             producer.flush()
 
             exibir_status(sim.estado["ciclo"], leituras, msgs_enviadas)
+            sim.avancar_tempo_simulado()
             time.sleep(INTERVALO_SEGUNDOS)
 
     except KeyboardInterrupt:

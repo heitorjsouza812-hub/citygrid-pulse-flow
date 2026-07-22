@@ -49,7 +49,8 @@
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
-:root, .dark {
+:root,
+.dark {
   /* Base palette — slate utility console */
   --background: oklch(0.16 0.012 250);
   --foreground: oklch(0.93 0.005 250);
@@ -70,14 +71,14 @@
   --accent-foreground: oklch(0.12 0.012 250);
   --destructive: oklch(0.62 0.18 28);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.30 0.012 250);
-  --input: oklch(0.30 0.012 250);
+  --border: oklch(0.3 0.012 250);
+  --input: oklch(0.3 0.012 250);
   --ring: oklch(0.72 0.09 235);
 
   /* Risk semantics — kept functional, slightly desaturated */
   --risk-low: oklch(0.68 0.12 160);
   --risk-med: oklch(0.76 0.13 80);
-  --risk-high: oklch(0.70 0.16 50);
+  --risk-high: oklch(0.7 0.16 50);
   --risk-crit: oklch(0.62 0.18 28);
 
   /* Legacy aliases retained for backwards-compat with existing components.
@@ -97,14 +98,26 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html, body { background-color: var(--color-background); color: var(--color-foreground); }
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
   body {
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01", "tnum";
   }
-  .font-mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
-  .font-display { font-family: var(--font-display); letter-spacing: -0.01em; }
+  .font-mono {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum";
+  }
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
 }
 
 @utility card-surface {
@@ -114,23 +127,51 @@
   box-shadow: var(--shadow-card);
   position: relative;
 }
-@utility card-accent-top { position: relative; }
-@utility gradient-text { color: var(--foreground); }
-@utility grid-bg { background-color: var(--color-card); }
+@utility card-accent-top {
+  position: relative;
+}
+@utility gradient-text {
+  color: var(--foreground);
+}
+@utility grid-bg {
+  background-color: var(--color-card);
+}
 
 @keyframes pulse-crit {
-  0%, 100% { border-color: color-mix(in oklab, var(--risk-crit) 55%, var(--border)); }
-  50%      { border-color: var(--risk-crit); }
+  0%,
+  100% {
+    border-color: color-mix(in oklab, var(--risk-crit) 55%, var(--border));
+  }
+  50% {
+    border-color: var(--risk-crit);
+  }
 }
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }
 @keyframes slide-in-up {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.animate-pulse-crit { animation: pulse-crit 1.8s ease-in-out infinite; }
-.animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
-.animate-slide-in-up { animation: slide-in-up 0.2s ease-out; }
+.animate-pulse-crit {
+  animation: pulse-crit 1.8s ease-in-out infinite;
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+.animate-slide-in-up {
+  animation: slide-in-up 0.2s ease-out;
+}
