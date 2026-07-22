@@ -1,157 +1,236 @@
-# CityGrid Brain 🧠⚡
+# CityGrid Brain — protótipo experimental de rede elétrica simulada
 
-> Sistema inteligente de monitoramento e gerenciamento de energia urbana para Smart Cities.
-> Motor de decisão híbrido com IA explicável (XAI), pipeline em tempo real e validação científica.
+> Prova de conceito para uma feira de ciências de curso técnico em IA. O sistema usa dados integralmente sintéticos, simulação acelerada e modelos experimentais de apoio à decisão. Não controla uma rede real e não executa ações automaticamente.
 
----
+## O que o projeto demonstra
 
-## Arquitetura
+- Simulação de telemetria elétrica de oito zonas urbanas.
+- Dashboard React conectado ao backend por REST e WebSocket, sem dados mockados.
+- Regras técnicas que geram recomendações para revisão humana.
+- XGBoost para estimar a classe de risco 30 minutos simulados à frente.
+- LSTM por zona para prever seis pontos de consumo, equivalentes a 30 minutos simulados.
+- Logs de recomendações para auditoria.
+- Integração opcional com Kafka, InfluxDB e Grafana.
 
+## Fluxo canônico da feira
+
+O modo recomendado para a apresentação não depende de Docker nem de internet:
+
+```text
+simulador_iot.py
+    ↓ dados_citygrid.jsonl
+motor_decisao.py --modo=arquivo
+    ↓ logs/decisoes.jsonl
+backend.py (FastAPI REST + WebSocket)
+    ↓
+frontend React/Vite
 ```
-Simulador IoT → Kafka → Consumer → InfluxDB → Grafana
-                  ↓
-           Motor de Decisão (4 camadas):
-             1. Heurísticas ANEEL/PRODIST
-             2. XGBoost (risco futuro t+30min)
-             3. LSTM (previsão de consumo)
-             4. Algoritmo Genético (otimização)
-                  ↓
-           Backend FastAPI → Dashboard Web (WS)
-```
 
----
+O relógio é acelerado: cada ciclo demora cinco segundos reais, mas avança cinco minutos no tempo simulado.
 
-## Instalação e Execução
+## Instalação
 
-### ▶ Modo Demo — Um comando só (sem Docker)
+Requisitos:
+
+- Python 3.12 recomendado.
+- Node.js e npm.
+- Docker apenas para a integração opcional.
+
+No Windows:
 
 ```bash
-# 1. Instale as dependências
-pip install -r requirements.txt
-
-# 2. Treine os modelos (necessário apenas na 1ª vez — já feito)
-python treinamento_ml.py
-
-# 3. Inicie tudo com um único comando
-python iniciar.py
+python -m venv .venv
+.venv\Scripts\python -m pip install --upgrade pip
+.venv\Scripts\python -m pip install -r requirements.txt
+npm install
 ```
 
-O `iniciar.py` sobe o simulador IoT, o motor de decisão e o backend automaticamente, e abre o dashboard no navegador.
+Os pins de `scikit-learn` e `kafka-python` preservam a compatibilidade dos artefatos treinados e dos clientes Kafka usados pelo projeto.
 
----
+## Executar a demonstração local
 
-### ▶ Modo Completo — Com Docker (Kafka + InfluxDB + Grafana)
+Verifique os pré-requisitos:
 
 ```bash
-# 1. Instale as dependências
-pip install -r requirements.txt
-
-# 2. Suba a infraestrutura
-docker-compose up -d
-
-# 3. Treine os modelos (1ª vez)
-python treinamento_ml.py
-
-# 4. Em terminais separados:
-python simulador_iot.py    # terminal 1 — gera dados
-python consumer.py          # terminal 2 — persiste no InfluxDB
-python motor_decisao.py     # terminal 3 — decisões IA via Kafka
-python backend.py           # terminal 4 — API REST + WebSocket
-
-# 5. Abra o dashboard
-start front-end/dashboard.html
+.venv\Scripts\python iniciar.py --check
 ```
 
----
+Inicie o fluxo completo:
 
-## Interfaces
-
-| Interface | URL | Descrição |
-|---|---|---|
-| Dashboard Web | `front-end/dashboard.html` | Monitor em tempo real |
-| Backend API | `http://localhost:8000` | REST + WebSocket |
-| Docs da API | `http://localhost:8000/docs` | Documentação interativa |
-| Grafana | `http://localhost:3000` | Séries temporais (modo completo) |
-| InfluxDB | `http://localhost:8086` | Banco de dados (modo completo) |
-
----
-
-## Motor de Decisão — 4 Camadas
-
-### Camada 1: Heurísticas (prioridade máxima)
-Regras baseadas em normas técnicas ANEEL PRODIST Módulo 8:
-- **R0** — Zona crítica (hospital/UPA): **NUNCA** cortar carga — proteção à vida humana
-- **R1** — Sobrecarga ≥ 95%: corte imediato de carga não essencial
-- **R2** — Frequência fora de 59,5–60,5 Hz: alerta de desequilíbrio
-- **R3** — THD > 8%: alerta de qualidade de energia
-- **R4** — FP < 0,92: alerta de fator de potência
-- **R5** — Consumo zero: detecção de microfalta
-
-### Camada 2: XGBoost
-- **Tarefa**: classifica risco **futuro** (t+30min) — BAIXO / MÉDIO / ALTO / CRÍTICO
-- **Anti-data-leakage**: label deslocado HORIZONTE_LSTM ciclos à frente
-- **Split temporal**: treino nos primeiros 80% do tempo, teste nos últimos 20%
-- **XAI**: SHAP values exportados em `graficos/shap_xgboost.png`
-
-### Camada 3: LSTM
-- **Tarefa**: prevê consumo MW nos próximos 30 minutos (6 passos × 5s)
-- **Modelos por zona**: 8 LSTMs especializados (janela de 24 ciclos)
-- **Split correto**: StandardScaler fitado apenas no conjunto de treino
-
-### Camada 4: Algoritmo Genético
-- **Tarefa**: redistribuição ótima de carga entre todas as zonas
-- **Critério**: minimizar sobrecarga nas zonas de alto risco
-
----
-
-## Referências Científicas
-
-- ANEEL. **PRODIST Módulo 8** — Qualidade da Energia Elétrica. 2023.
-- ONS. **Atlas de Energia Elétrica do Brasil**. 2022.
-- INMET. **Normais Climatológicas do Brasil 1991–2020**. 2022.
-- Hochreiter & Schmidhuber. **Long Short-Term Memory**. Neural Computation, 1997.
-- Chen & Guestrin. **XGBoost: A Scalable Tree Boosting System**. KDD 2016.
-- Lundberg & Lee. **A Unified Approach to Interpreting Model Predictions**. NIPS 2017.
-
----
-
-## Embasamento Normativo
-
-| Parâmetro | Referência | Valor |
-|---|---|---|
-| Frequência (limite precário) | ANEEL PRODIST M8 | 59,5 – 60,5 Hz |
-| THD de tensão (limite) | ANEEL PRODIST M8, §3.6 | 8% |
-| Fator de potência mínimo | Res. ANEEL 456/2000 | 0,92 |
-| Tensão nominal BT | NBR 5410 | 220/127 V |
-| Índices de continuidade | ANEEL (DEC/FEC) | por zona |
-
----
-
-## Estrutura de Arquivos
-
-```
-Smartcity/
-├── simulador_iot.py       # Gerador de dados sintéticos
-├── consumer.py            # Consumer Kafka → InfluxDB
-├── motor_decisao.py       # Motor de decisão IA híbrido
-├── treinamento_ml.py      # Pipeline de treinamento ML
-├── backend.py             # API FastAPI + WebSocket
-├── docker-compose.yml     # Infraestrutura (Kafka/InfluxDB/Grafana)
-├── requirements.txt       # Dependências Python
-├── modelos/               # Modelos treinados (.pt, .json, .pkl)
-├── graficos/              # Gráficos de métricas e SHAP
-├── logs/decisoes.jsonl    # Log de auditoria das decisões
-├── dados_citygrid.jsonl   # Leituras do simulador
-├── grafana/provisioning/  # Configuração automática Grafana
-└── front-end/
-    └── dashboard.html     # Dashboard web em tempo real
+```bash
+.venv\Scripts\python iniciar.py
 ```
 
----
+Para não abrir o navegador automaticamente:
 
-## Limitações e Trabalhos Futuros
+```bash
+.venv\Scripts\python iniciar.py --sem-navegador
+```
 
-- **Dados sintéticos**: o simulador é calibrado com normas reais (ANEEL, ONS, INMET), mas não substitui dados coletados de redes reais.
-- **Escala**: testado com 8 zonas; a arquitetura suporta expansão horizontal via Kafka.
-- **Modelos**: retreinamento periódico recomendado à medida que novos dados acumulam.
-- **Trabalhos futuros**: integração com SCADA real, federated learning entre cidades, previsão de demanda com dados meteorológicos em tempo real (API INMET).
+URLs:
+
+| Componente          | URL                          |
+| ------------------- | ---------------------------- |
+| Dashboard React     | `http://127.0.0.1:5173`      |
+| API FastAPI         | `http://127.0.0.1:8000`      |
+| Documentação da API | `http://127.0.0.1:8000/docs` |
+| WebSocket           | `ws://127.0.0.1:8000/ws`     |
+
+Pressione `Ctrl+C` no launcher para encerrar todos os componentes iniciados por ele.
+
+## Pergunta e protocolo experimental
+
+Pergunta de pesquisa:
+
+> Em uma rede urbana sintética, os modelos aprendidos conseguem prever consumo e risco 30 minutos à frente melhor que baselines ingênuos?
+
+Hipóteses mensuráveis:
+
+1. A LSTM deve reduzir o MAE em relação à persistência do último consumo observado.
+2. O XGBoost deve superar a persistência do risco atual em F1 macro.
+
+Protocolo registrado em `graficos/metricas_experimento.json`:
+
+- Base: `dados_turbo.csv`, com 100.000 linhas sintéticas.
+- Seed: `42`.
+- Hash SHA-256 da base: `e94426f69498789305fb11ca0c2add742f0c22119e02fb6ccfc0f13d3cc54726`.
+- Intervalo simulado: cinco minutos por ciclo.
+- Horizonte: seis ciclos, ou 30 minutos simulados.
+- Split sincronizado por ciclo: 70% treino, 15% validação e 15% teste.
+- Todas as zonas de um ciclo permanecem no mesmo conjunto.
+- Embargo de seis ciclos nas duas fronteiras para evitar vazamento do alvo futuro.
+- O teste não é usado para ajuste ou early stopping.
+- Baselines: classe majoritária e persistência.
+
+Para regenerar os modelos e gráficos:
+
+```bash
+.venv\Scripts\python treinamento_ml.py
+```
+
+## Resultados atuais
+
+### XGBoost — classificação de risco futuro
+
+Resultados no teste temporal:
+
+| Métrica             | Resultado |
+| ------------------- | --------: |
+| Acurácia            |     0,606 |
+| Acurácia balanceada |     0,370 |
+| F1 macro            |     0,298 |
+| Recall de `CRÍTICO` |     0,142 |
+
+Comparação:
+
+- Supera a classe majoritária em F1 macro: `0,298` contra `0,226`.
+- Não supera a persistência em F1 macro: `0,298` contra `0,304`.
+- A acurácia simples também fica abaixo da classe majoritária por causa do desbalanceamento.
+
+Conclusão honesta: o XGBoost ainda é fraco para as classes de risco e não deve ser apresentado como modelo confiável ou validado para operação.
+
+### LSTM — previsão de consumo
+
+As oito LSTMs superaram o baseline de persistência em MAE nesta única base sintética.
+
+- Melhor MAE: Zona Universitária, `0,572 MW`.
+- Pior MAE: Zona Oeste, `5,820 MW`.
+
+Conclusão honesta: a previsão de consumo é a parte mais defensável do experimento, mas o resultado ainda não demonstra generalização para outra geração sintética, outra cidade ou uma rede real.
+
+### Sistema híbrido
+
+Nenhum estudo de ablação conjunto foi executado. O projeto não publica uma métrica híbrida estimada e não afirma que a combinação dos componentes supera os modelos isolados.
+
+## Significado das saídas
+
+- `risco`: estado sintético atual produzido pelo simulador.
+- `risco_xgb`: previsão experimental para 30 minutos simulados à frente.
+- `risco_lstm`: risco derivado da previsão de consumo da LSTM.
+- `confianca` do XGBoost: maior probabilidade bruta produzida pelo modelo; não é garantia de acerto nem confiança calibrada.
+- Regras e algoritmo genético geram recomendações ou cenários hipotéticos; não acionam equipamentos.
+- `energia_renovavel_intervalo_mwh` mede geração renovável no intervalo simulado. Não mede economia causada pela IA.
+
+## Integração opcional Kafka/InfluxDB/Grafana
+
+Esta integração é experimental e separada do fluxo canônico do dashboard. Ela demonstra streaming e observabilidade, mas o React/FastAPI continua lendo o JSONL local.
+
+1. Copie `.env.example` para `.env` e substitua todas as credenciais de exemplo.
+2. Valide e suba a infraestrutura:
+
+```bash
+docker compose config
+docker compose up -d
+```
+
+3. Em terminais separados, execute:
+
+```bash
+.venv\Scripts\python producer.py
+.venv\Scripts\python consumer.py
+.venv\Scripts\python motor_decisao.py
+```
+
+Serviços opcionais:
+
+| Serviço       | URL/porta               |
+| ------------- | ----------------------- |
+| Kafka no host | `localhost:9092`        |
+| InfluxDB      | `http://localhost:8086` |
+| Grafana       | `http://localhost:3000` |
+
+As credenciais não ficam no código e as portas são vinculadas a `127.0.0.1`. O Kafka ainda usa `PLAINTEXT`; portanto, esse Compose é adequado apenas para demonstração local, não para produção.
+
+## Verificação
+
+```bash
+.venv\Scripts\python -m pytest -q
+.venv\Scripts\python -m compileall -q .
+npm test
+npm run typecheck
+npm run lint
+npm run build
+.venv\Scripts\python iniciar.py --check
+```
+
+## Estrutura principal
+
+```text
+backend.py                     API FastAPI e WebSocket
+simulador_iot.py               simulador em tempo real acelerado
+motor_decisao.py               recomendações em modo JSONL ou Kafka
+producer.py                    simulador → Kafka, integração opcional
+consumer.py                    Kafka → InfluxDB, integração opcional
+treinamento_ml.py              treinamento e geração dos artefatos
+ml_core.py                     split, baselines e métricas reutilizáveis
+iniciar.py                     launcher canônico da demonstração
+src/                           dashboard React conectado à API
+tests/                         testes Python
+modelos/                       modelos e scalers treinados
+graficos/metricas_experimento.json
+                               protocolo, ambiente e métricas reproduzíveis
+grafana/provisioning/          dashboards da integração opcional
+docker-compose.yml             infraestrutura opcional
+```
+
+As interfaces antigas `front-end/dashboard.html` e `dashboard_cientifico.py`, os gráficos contraditórios e o modelo LSTM genérico sem proveniência foram removidos.
+
+## Limitações e ameaças à validade
+
+- Todos os dados são sintéticos.
+- Há somente uma geração principal da base; não há validação entre várias sementes ou cidades.
+- O simulador usa regras próprias que também influenciam os padrões aprendidos.
+- O XGBoost não supera o baseline de persistência em F1 macro.
+- O score do XGBoost não foi calibrado como probabilidade confiável.
+- Não há atuadores, SCADA, medidores reais nem validação de fluxo de potência.
+- O algoritmo genético calcula apenas uma distribuição hipotética; não garante viabilidade elétrica.
+- Não foi medido um cenário contrafactual “com IA versus sem IA”; portanto, não há alegação de economia causada pela IA.
+- A integração Docker precisa ser executada em um host com Docker antes de ser usada na apresentação.
+
+## Uso responsável na feira
+
+Apresente o CityGrid Brain como:
+
+> “Prova de conceito de um sistema de apoio à decisão para uma rede urbana simulada, com dados sintéticos e simulação acelerada.”
+
+Não o apresente como produto operacional, sistema autônomo, solução validada pela ANEEL ou prova de economia real de energia.
