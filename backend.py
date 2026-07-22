@@ -29,6 +29,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 
 # FastAPI
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -54,6 +55,7 @@ PASTA_MODELOS   = BASE_DIR / "modelos"
 
 JANELA_LSTM     = 24
 HORIZONTE_LSTM  = 6
+INTERVALO_SIMULADO_MINUTOS = 5
 FEATURES_XGB = [
     "pct_carga", "consumo_mw", "consumo_liquido_mw",
     "clima_temp_c", "clima_irrad_wm2", "clima_umidade_pct",
@@ -82,6 +84,7 @@ _cache: Dict[str, Any] = {
     "stats":          {},
     "ciclo_atual":    0,
     "ultima_leitura": None,
+    "ultima_chave_por_zona": {},
 }
 
 # ══════════════════════════════════════════════════════════════════
@@ -176,21 +179,80 @@ def ler_ultimas_linhas(caminho: Path, n: int = 200) -> List[dict]:
         logger.error(f"Erro ao ler {caminho}: {e}")
         return []
 
+
+def extrair_instante_amostra(dados: dict) -> datetime:
+    """Usa o relógio simulado da amostra, não o relógio da máquina."""
+    valor = dados.get("timestamp")
+    if valor:
+        try:
+            return datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+        except ValueError:
+            logger.warning("Timestamp inválido na amostra: %s", valor)
+    return datetime.now(timezone.utc)
+
+
+def incorporar_leituras_cache(leituras: List[dict]) -> Dict[str, dict]:
+    """Incorpora apenas observações novas e devolve a mais recente por zona."""
+    por_zona: Dict[str, dict] = {}
+    for leitura in leituras:
+        zona_id = leitura.get("zona_id")
+        if not zona_id:
+            continue
+        por_zona[zona_id] = leitura
+        chave = (leitura.get("ciclo"), leitura.get("timestamp"))
+        historico = _cache["historicos"][zona_id]
+        chaves_existentes = {
+            (item.get("ciclo"), item.get("timestamp")) for item in historico
+        }
+        if chave not in chaves_existentes:
+            historico.append(leitura)
+        _cache["ultima_chave_por_zona"][zona_id] = chave
+    return por_zona
+
+
+def calcular_stats(
+    zonas: List[dict],
+    total_recomendacoes: int,
+    intervalo_minutos: int = INTERVALO_SIMULADO_MINUTOS,
+) -> dict:
+    """Calcula telemetria observada sem atribuir economia causal à IA."""
+    if not zonas:
+        return {}
+    tot_mw = sum(z.get("consumo_mw", 0) for z in zonas)
+    tot_renov = sum(z.get("geracao_total_mw", 0) for z in zonas)
+    pct_renov = round(tot_renov / tot_mw * 100, 1) if tot_mw > 0 else 0
+    return {
+        "consumo_total_mw": round(tot_mw, 2),
+        "renovavel_total_mw": round(tot_renov, 3),
+        "pct_renovavel": pct_renov,
+        "zonas_criticas": sum(1 for z in zonas if z.get("risco") == "CRÍTICO"),
+        "zonas_alto": sum(1 for z in zonas if z.get("risco") == "ALTO"),
+        "anomalias_ativas": sum(1 for z in zonas if z.get("anomalia_tipo")),
+        "total_recomendacoes": total_recomendacoes,
+        "energia_renovavel_intervalo_mwh": round(
+            tot_renov * intervalo_minutos / 60, 4
+        ),
+        "intervalo_simulado_minutos": intervalo_minutos,
+        "evento_ativo": zonas[0].get("evento"),
+        "dados_sinteticos": True,
+    }
+
 # ══════════════════════════════════════════════════════════════════
 #  INFERÊNCIA ML
-# ══════════════════════════════════════════════════════════════════
+
 
 def inferir_xgboost(dados: dict) -> tuple:
     """Retorna (risco_previsto, confianca, distribuicao)."""
     if modelos["xgb"] is None:
-        return dados.get("risco", "BAIXO"), 0.0, {}
+        return "AGUARDANDO", None, {}
 
-    hora = datetime.now().hour
+    instante = extrair_instante_amostra(dados)
+    hora = instante.hour
     d    = dict(dados)
     d["hora"]          = hora
     d["hora_sin"]      = np.sin(2 * np.pi * hora / 24)
     d["hora_cos"]      = np.cos(2 * np.pi * hora / 24)
-    d["dia_semana"]    = datetime.now().weekday()
+    d["dia_semana"]    = instante.weekday()
     d["anomalia_flag"] = 1 if d.get("anomalia_tipo") else 0
     d["evento_flag"]   = 1 if d.get("evento") else 0
 
@@ -204,7 +266,7 @@ def inferir_xgboost(dados: dict) -> tuple:
         return risco, conf, distrib
     except Exception as e:
         logger.warning(f"Erro XGBoost: {e}")
-        return dados.get("risco", "BAIXO"), 0.0, {}
+        return "ERRO", None, {}
 
 
 def inferir_lstm(zona_id: str, historico: list) -> tuple:
@@ -254,18 +316,15 @@ async def atualizar_cache():
     if not leituras:
         return
 
-    # Agrupa por zona — pega a leitura mais recente de cada zona
-    por_zona: Dict[str, dict] = {}
-    for l in leituras:
-        zona_id = l.get("zona_id")
-        if zona_id:
-            por_zona[zona_id] = l
-            _cache["historicos"][zona_id].append(l)
+    # Agrupa por zona e adiciona ao histórico somente observações novas.
+    por_zona = incorporar_leituras_cache(leituras)
 
     # Atualiza cada zona com inferência ML
     for zona_id, dados in por_zona.items():
         risco_xgb, conf_xgb, distrib_xgb = inferir_xgboost(dados)
-        risco_lstm, previsao_mw           = inferir_lstm(zona_id, list(_cache["historicos"][zona_id]))
+        risco_lstm, previsao_mw = inferir_lstm(
+            zona_id, list(_cache["historicos"][zona_id])
+        )
 
         _cache["zonas"][zona_id] = {
             **dados,
@@ -280,50 +339,56 @@ async def atualizar_cache():
         if ciclo > _cache["ciclo_atual"]:
             _cache["ciclo_atual"] = ciclo
 
-    _cache["ultima_leitura"] = datetime.now(timezone.utc).isoformat()
+    timestamps = [str(d.get("timestamp")) for d in por_zona.values() if d.get("timestamp")]
+    _cache["ultima_leitura"] = max(timestamps) if timestamps else None
 
-    # Lê alertas/ações recentes
+    # Lê recomendações recentes
     alertas_raw = ler_ultimas_linhas(LOG_DECISOES, n=20)
     _cache["alertas"] = deque(alertas_raw, maxlen=20)
 
-    # Calcula stats globais
     zonas = list(_cache["zonas"].values())
-    if zonas:
-        tot_mw    = sum(z.get("consumo_mw", 0) for z in zonas)
-        tot_renov = sum(z.get("geracao_total_mw", 0) for z in zonas)
-        n_crit    = sum(1 for z in zonas if z.get("risco_xgb") == "CRÍTICO")
-        n_alto    = sum(1 for z in zonas if z.get("risco_xgb") == "ALTO")
-        n_anom    = sum(1 for z in zonas if z.get("anomalia_tipo"))
-        n_acoes   = len(_cache["alertas"])
-        pct_renov = round(tot_renov / tot_mw * 100, 1) if tot_mw > 0 else 0
-
-        _cache["stats"] = {
-            "consumo_total_mw":   round(tot_mw, 2),
-            "renovavel_total_mw": round(tot_renov, 3),
-            "pct_renovavel":      pct_renov,
-            "zonas_criticas":     n_crit,
-            "zonas_alto":         n_alto,
-            "anomalias_ativas":   n_anom,
-            "total_acoes":        n_acoes,
-            "economia_mwh":       round(tot_renov * 5 / 3600, 4),  # MW × Δt
-            "evento_ativo":       zonas[0].get("evento") if zonas else None,
-        }
+    _cache["stats"] = calcular_stats(
+        zonas,
+        total_recomendacoes=len(_cache["alertas"]),
+    )
 
 # ══════════════════════════════════════════════════════════════════
 #  FASTAPI APP
 # ══════════════════════════════════════════════════════════════════
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    carregar_modelos()
+    tarefa = asyncio.create_task(loop_atualizacao())
+    logger.info("CityGrid Backend iniciado — http://localhost:8000")
+    try:
+        yield
+    finally:
+        tarefa.cancel()
+        try:
+            await tarefa
+        except asyncio.CancelledError:
+            pass
+
+
 app = FastAPI(
     title="CityGrid Brain API",
-    description="Backend do monitor de energia urbana inteligente",
-    version="1.0.0",
+    description="API de um protótipo experimental com dados sintéticos",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=[
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:4173",
+        "http://localhost:4173",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
@@ -355,16 +420,6 @@ ws_manager = WSManager()
 
 # ── Background task — atualiza cache e faz broadcast a cada 5s ────
 
-@app.on_event("startup")
-async def startup_event():
-    carregar_modelos()
-    asyncio.create_task(loop_atualizacao())
-    logger.info("CityGrid Backend iniciado — http://localhost:8000")
-    logger.info("  GET  /api/zonas")
-    logger.info("  GET  /api/alertas")
-    logger.info("  GET  /api/stats")
-    logger.info("  WS   /ws")
-
 async def loop_atualizacao():
     while True:
         try:
@@ -372,9 +427,11 @@ async def loop_atualizacao():
             payload = {
                 "tipo":      "update",
                 "ciclo":     _cache["ciclo_atual"],
-                "timestamp": _cache["ultima_leitura"],
+                "timestamp_simulado": _cache["ultima_leitura"],
+                "atualizado_em_utc": datetime.now(timezone.utc).isoformat(),
+                "zonas":     list(_cache["zonas"].values()),
                 "stats":     _cache["stats"],
-                "alertas":   list(_cache["alertas"])[-6:],
+                "recomendacoes": list(_cache["alertas"])[-20:],
             }
             await ws_manager.broadcast(payload)
         except Exception as e:
@@ -391,7 +448,7 @@ async def get_zonas():
 
 @app.get("/api/alertas")
 async def get_alertas(n: int = 20):
-    """Retorna as últimas N ações/alertas do motor de decisão."""
+    """Retorna recomendações simuladas recentes do motor de decisão."""
     return list(_cache["alertas"])[-n:]
 
 
@@ -420,9 +477,11 @@ async def websocket_endpoint(ws: WebSocket):
         await ws.send_json({
             "tipo":      "update",
             "ciclo":     _cache["ciclo_atual"],
-            "timestamp": _cache["ultima_leitura"],
+            "timestamp_simulado": _cache["ultima_leitura"],
+            "atualizado_em_utc": datetime.now(timezone.utc).isoformat(),
+            "zonas":     list(_cache["zonas"].values()),
             "stats":     _cache["stats"],
-            "alertas":   list(_cache["alertas"])[-6:],
+            "recomendacoes": list(_cache["alertas"])[-20:],
         })
         while True:
             await asyncio.sleep(30)  # mantém a conexão viva

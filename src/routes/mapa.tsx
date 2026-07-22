@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { X, Layers, MapPin, Zap, ThermometerSun, Activity } from "lucide-react";
-import { ZONAS_MOCK, type Zona } from "@/lib/mock-data";
+import { useCityGrid } from "@/lib/citygrid-context";
+import type { Zona } from "@/lib/citygrid-types";
 import { riscoColor } from "@/lib/risco";
 import { RiscoBadge } from "@/components/RiscoBadge";
 import { BarraCarga } from "@/components/BarraCarga";
@@ -10,7 +11,10 @@ export const Route = createFileRoute("/mapa")({
   head: () => ({
     meta: [
       { title: "Mapa da Cidade — CityGrid Brain" },
-      { name: "description", content: "Visualização geoespacial das 8 zonas urbanas monitoradas em tempo real." },
+      {
+        name: "description",
+        content: "Visualização geoespacial das 8 zonas urbanas monitoradas em tempo real.",
+      },
     ],
   }),
   component: MapaPage,
@@ -19,17 +23,32 @@ export const Route = createFileRoute("/mapa")({
 type Layer = "risco" | "consumo" | "renovavel" | "anomalias";
 
 function MapaPage() {
+  const { zonas } = useCityGrid();
   const [sel, setSel] = useState<Zona | null>(null);
   const [layer, setLayer] = useState<Layer>("risco");
 
-  const maxConsumo = Math.max(...ZONAS_MOCK.map((z) => z.consumo_mw));
+  const maxConsumo = Math.max(1, ...zonas.map((z) => z.consumo_mw));
 
   const colorFor = (z: Zona): string => {
     switch (layer) {
-      case "consumo": return z.pct_carga >= 80 ? "var(--risk-crit)" : z.pct_carga >= 60 ? "var(--risk-high)" : z.pct_carga >= 40 ? "var(--risk-med)" : "var(--risk-low)";
-      case "renovavel": return z.geracao_total_mw > 2 ? "var(--risk-low)" : z.geracao_total_mw > 0.8 ? "var(--risk-med)" : "var(--muted-foreground)";
-      case "anomalias": return z.anomalia_tipo ? "var(--risk-crit)" : "var(--muted-foreground)";
-      default: return riscoColor(z.risco_xgb);
+      case "consumo":
+        return z.pct_carga >= 80
+          ? "var(--risk-crit)"
+          : z.pct_carga >= 60
+            ? "var(--risk-high)"
+            : z.pct_carga >= 40
+              ? "var(--risk-med)"
+              : "var(--risk-low)";
+      case "renovavel":
+        return z.geracao_total_mw > 2
+          ? "var(--risk-low)"
+          : z.geracao_total_mw > 0.8
+            ? "var(--risk-med)"
+            : "var(--muted-foreground)";
+      case "anomalias":
+        return z.anomalia_tipo ? "var(--risk-crit)" : "var(--muted-foreground)";
+      default:
+        return riscoColor(z.risco_atual);
     }
   };
 
@@ -40,7 +59,9 @@ function MapaPage() {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h1 className="font-display font-extrabold text-2xl">Mapa da Cidade</h1>
-          <p className="text-xs text-muted-foreground">Topologia simplificada das zonas monitoradas</p>
+          <p className="text-xs text-muted-foreground">
+            Topologia simplificada das zonas monitoradas
+          </p>
         </div>
         <LayerControls layer={layer} onChange={setLayer} />
       </div>
@@ -48,37 +69,51 @@ function MapaPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
         {/* Mapa */}
         <div className="card-surface relative overflow-hidden" style={{ minHeight: "560px" }}>
-          <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--gradient-accent)" }} />
+          <div
+            className="absolute inset-x-0 top-0 h-px"
+            style={{ background: "var(--gradient-accent)" }}
+          />
           <div className="absolute inset-0 grid-bg" />
           {/* malha viária estilizada */}
-          <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+          <svg
+            className="absolute inset-0 w-full h-full"
+            preserveAspectRatio="none"
+            viewBox="0 0 100 100"
+          >
             <path d="M0,30 L100,32" stroke="var(--border)" strokeWidth="0.3" />
             <path d="M0,55 L100,53" stroke="var(--border)" strokeWidth="0.3" />
             <path d="M0,75 L100,78" stroke="var(--border)" strokeWidth="0.3" />
             <path d="M25,0 L23,100" stroke="var(--border)" strokeWidth="0.3" />
             <path d="M50,0 L52,100" stroke="var(--border)" strokeWidth="0.3" />
             <path d="M78,0 L80,100" stroke="var(--border)" strokeWidth="0.3" />
-            <path d="M10,10 Q50,40 90,15 T95,90" stroke="color-mix(in oklab, var(--cyan-elec) 18%, transparent)" strokeWidth="0.4" fill="none" strokeDasharray="1,1" />
+            <path
+              d="M10,10 Q50,40 90,15 T95,90"
+              stroke="color-mix(in oklab, var(--cyan-elec) 18%, transparent)"
+              strokeWidth="0.4"
+              fill="none"
+              strokeDasharray="1,1"
+            />
           </svg>
 
           {/* Zonas */}
           <div className="relative w-full h-full" style={{ minHeight: "560px" }}>
-            {ZONAS_MOCK.map((z) => {
+            {zonas.map((z) => {
               const color = colorFor(z);
               const size = sizeFor(z);
-              const isCrit = z.risco_xgb === "CRÍTICO";
+              const isCrit = z.risco_atual === "CRÍTICO";
               return (
                 <button
                   key={z.zona_id}
                   onClick={() => setSel(z)}
                   className="absolute -translate-x-1/2 -translate-y-1/2 group"
                   style={{ left: `${z.lng}%`, top: `${z.lat}%` }}
-                  title={`${z.zona_nome} • ${z.consumo_mw.toFixed(1)} MW • ${z.pct_carga.toFixed(1)}% • ${z.risco_xgb} • ${z.clima_temp_c.toFixed(1)}°C`}
+                  title={`${z.zona_nome} • ${z.consumo_mw.toFixed(1)} MW • ${z.pct_carga.toFixed(1)}% • atual ${z.risco_atual} • ${z.clima_temp_c.toFixed(1)}°C`}
                 >
                   <span
                     className={`block rounded-full transition-transform group-hover:scale-110 ${isCrit ? "animate-pulse-crit" : ""}`}
                     style={{
-                      width: size, height: size,
+                      width: size,
+                      height: size,
                       backgroundColor: `color-mix(in oklab, ${color} 30%, transparent)`,
                       border: `2px solid ${color}`,
                       boxShadow: `0 0 ${size * 0.6}px color-mix(in oklab, ${color} 60%, transparent)`,
@@ -94,10 +129,15 @@ function MapaPage() {
 
           {/* Legenda */}
           <div className="absolute bottom-3 left-3 card-surface p-3 text-[10px] font-mono space-y-1">
-            <div className="uppercase tracking-wider text-muted-foreground font-display font-bold mb-1">Legenda</div>
-            {(["BAIXO","MÉDIO","ALTO","CRÍTICO"] as const).map((r) => (
+            <div className="uppercase tracking-wider text-muted-foreground font-display font-bold mb-1">
+              Legenda
+            </div>
+            {(["BAIXO", "MÉDIO", "ALTO", "CRÍTICO"] as const).map((r) => (
               <div key={r} className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: riscoColor(r), boxShadow: `0 0 6px ${riscoColor(r)}` }} />
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: riscoColor(r), boxShadow: `0 0 6px ${riscoColor(r)}` }}
+                />
                 <span>{r}</span>
               </div>
             ))}
@@ -112,7 +152,9 @@ function MapaPage() {
             <div className="card-surface p-5 text-center">
               <MapPin className="h-8 w-8 mx-auto mb-2 text-primary" />
               <h3 className="font-display font-bold text-base mb-1">Selecione uma zona</h3>
-              <p className="text-xs text-muted-foreground">Clique em um marcador para ver detalhes completos, qualidade elétrica e ações da IA.</p>
+              <p className="text-xs text-muted-foreground">
+                Clique em um marcador para ver detalhes completos, qualidade elétrica e ações da IA.
+              </p>
             </div>
           )}
         </aside>
@@ -138,7 +180,10 @@ function LayerControls({ layer, onChange }: { layer: Layer; onChange: (l: Layer)
           className="px-3 py-1.5 rounded text-[10px] font-mono uppercase tracking-wider font-bold transition-colors"
           style={{
             color: layer === o.id ? "var(--cyan-elec)" : "var(--muted-foreground)",
-            backgroundColor: layer === o.id ? "color-mix(in oklab, var(--cyan-elec) 12%, transparent)" : "transparent",
+            backgroundColor:
+              layer === o.id
+                ? "color-mix(in oklab, var(--cyan-elec) 12%, transparent)"
+                : "transparent",
           }}
         >
           {o.label}
@@ -151,18 +196,26 @@ function LayerControls({ layer, onChange }: { layer: Layer; onChange: (l: Layer)
 function ZonaPanel({ zona, onClose }: { zona: Zona; onClose: () => void }) {
   return (
     <div className="card-surface p-4 animate-slide-in-up">
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: "var(--gradient-accent)" }} />
+      <div
+        className="absolute inset-x-0 top-0 h-px"
+        style={{ background: "var(--gradient-accent)" }}
+      />
       <div className="flex items-start justify-between gap-2 mb-3">
         <div>
           <h3 className="font-display font-extrabold text-lg leading-tight">{zona.zona_nome}</h3>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{zona.perfil}</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            {zona.perfil}
+          </p>
         </div>
-        <button onClick={onClose} className="p-1 rounded hover:bg-surface"><X className="h-4 w-4" /></button>
+        <button onClick={onClose} className="p-1 rounded hover:bg-surface">
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-3">
-        <RiscoBadge risco={zona.risco_xgb} />
-        <RiscoBadge risco={zona.risco_lstm} prev />
+        <RiscoBadge risco={zona.risco_atual} label="Atual" />
+        <RiscoBadge risco={zona.risco_xgb} label="XGB 30min" />
+        <RiscoBadge risco={zona.risco_lstm} label="LSTM 30min" />
       </div>
 
       <BarraCarga pct={zona.pct_carga} capacidade={zona.capacidade_mw} consumo={zona.consumo_mw} />

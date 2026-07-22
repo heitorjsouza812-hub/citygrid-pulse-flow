@@ -6,7 +6,17 @@ const colorMap: Record<Estado, string> = {
   vermelho: "var(--risk-crit)",
 };
 
-export function SemaforoANEEL({ estado, label, valor, unidade }: { estado: Estado; label: string; valor: string | number; unidade?: string }) {
+export function SemaforoANEEL({
+  estado,
+  label,
+  valor,
+  unidade,
+}: {
+  estado: Estado;
+  label: string;
+  valor: string | number;
+  unidade?: string;
+}) {
   const color = colorMap[estado];
   return (
     <div className="card-surface p-3 flex items-center gap-3">
@@ -15,7 +25,9 @@ export function SemaforoANEEL({ estado, label, valor, unidade }: { estado: Estad
         style={{ backgroundColor: color, boxShadow: `0 0 12px ${color}` }}
       />
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-display font-bold">{label}</div>
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-display font-bold">
+          {label}
+        </div>
         <div className="font-mono text-base font-bold" style={{ color }}>
           {valor}
           {unidade && <span className="text-xs text-muted-foreground ml-1">{unidade}</span>}

@@ -1,156 +1,224 @@
-"""
-╔══════════════════════════════════════════════════════════════════╗
-║         CITYGRID BRAIN — LANÇADOR ÚNICO (Modo Demo)             ║
-║   Inicia todos os componentes com um único comando              ║
-║                                                                 ║
-║   Uso: python iniciar.py                                        ║
-║                                                                 ║
-║   O que este script faz:                                        ║
-║     1. Inicia o Simulador IoT (gera dados a cada 5s)           ║
-║     2. Inicia o Motor de Decisão offline (sem Kafka)           ║
-║     3. Inicia o Backend FastAPI (http://localhost:8000)         ║
-║     4. Abre o Dashboard no navegador automaticamente            ║
-║                                                                 ║
-║   Pressione Ctrl+C para encerrar tudo.                          ║
-╚══════════════════════════════════════════════════════════════════╝
+"""Lançador verificável do modo de demonstração local do CityGrid Brain.
+
+Fluxo canônico:
+    simulador sintético -> JSONL -> motor de recomendações -> FastAPI -> React
+
+O modo principal não depende de Kafka, InfluxDB, Grafana ou internet.
 """
 
+from __future__ import annotations
+
+import argparse
+import importlib.util
 import os
-import sys
-import time
+import shutil
 import signal
 import subprocess
+import sys
+import time
+import urllib.request
 import webbrowser
 from pathlib import Path
 
-BASE = Path(__file__).parent
+BASE = Path(__file__).resolve().parent
+API_URL = "http://127.0.0.1:8000"
+DASHBOARD_URL = "http://127.0.0.1:5173"
 
-VERDE   = "\033[92m"
+VERDE = "\033[92m"
 AMARELO = "\033[93m"
-CIANO   = "\033[96m"
-VERMELHO= "\033[91m"
-RESET   = "\033[0m"
-BOLD    = "\033[1m"
+CIANO = "\033[96m"
+VERMELHO = "\033[91m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
 
-processos = []
+processos: list[tuple[str, subprocess.Popen]] = []
+encerrando = False
 
 
-def banner():
-    print(CIANO + BOLD + """
+def banner() -> None:
+    print(
+        CIANO
+        + BOLD
+        + """
 ╔══════════════════════════════════════════════════════════════════╗
-║         CITYGRID BRAIN — SMART CITY ENERGY MONITOR              ║
-║              Feira de Ciência — Modo Demo                       ║
+║             CITYGRID BRAIN — PROTÓTIPO EXPERIMENTAL             ║
+║       dados sintéticos · simulação acelerada · modo local       ║
 ╚══════════════════════════════════════════════════════════════════╝
-""" + RESET)
-
-
-def iniciar_processo(nome: str, cmd: list, esperar: float = 0) -> subprocess.Popen:
-    print(f"  {CIANO}[INICIANDO]{RESET} {nome}...")
-    if esperar > 0:
-        time.sleep(esperar)
-    p = subprocess.Popen(
-        cmd,
-        cwd=str(BASE),
-        creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == "nt" else 0,
+"""
+        + RESET
     )
-    processos.append((nome, p))
-    print(f"  {VERDE}[OK]{RESET}       {nome} — PID {p.pid}")
-    return p
 
 
-def encerrar_tudo(sig=None, frame=None):
+def verificar_pre_requisitos() -> list[str]:
+    erros: list[str] = []
+    arquivos = [
+        "simulador_iot.py",
+        "motor_decisao.py",
+        "backend.py",
+        "package.json",
+        "modelos/xgboost_risco.json",
+    ]
+    for relativo in arquivos:
+        if not (BASE / relativo).exists():
+            erros.append(f"arquivo ausente: {relativo}")
+
+    lstms = list((BASE / "modelos").glob("lstm_*.pt"))
+    scalers = list((BASE / "modelos").glob("scaler_*.pkl"))
+    if len(lstms) != 8 or len(scalers) != 8:
+        erros.append(
+            f"artefatos LSTM incompletos: {len(lstms)} modelos e {len(scalers)} scalers; esperado 8 de cada"
+        )
+
+    for modulo in ("numpy", "pandas", "torch", "xgboost", "fastapi", "uvicorn"):
+        if importlib.util.find_spec(modulo) is None:
+            erros.append(f"dependência Python ausente: {modulo}")
+
+    if shutil.which("npm") is None and shutil.which("npm.cmd") is None:
+        erros.append("npm não encontrado no PATH")
+    if not (BASE / "node_modules").is_dir():
+        erros.append("node_modules ausente; execute: npm install")
+
+    return erros
+
+
+def iniciar_processo(nome: str, cmd: list[str], esperar: float = 0) -> subprocess.Popen:
+    print(f"  {CIANO}[INICIANDO]{RESET} {nome}...")
+    if esperar:
+        time.sleep(esperar)
+    flags = 0
+    if os.name == "nt":
+        flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NEW_CONSOLE
+    processo = subprocess.Popen(cmd, cwd=str(BASE), creationflags=flags)
+    processos.append((nome, processo))
+    print(f"  {VERDE}[OK]{RESET}       {nome} — PID {processo.pid}")
+    return processo
+
+
+def encerrar_tudo(_sig=None, _frame=None, codigo: int = 0) -> None:
+    global encerrando
+    if encerrando:
+        return
+    encerrando = True
     print(f"\n  {AMARELO}Encerrando todos os componentes...{RESET}")
-    for nome, p in reversed(processos):
+    for nome, processo in reversed(processos):
+        if processo.poll() is not None:
+            continue
         try:
-            p.terminate()
-            p.wait(timeout=5)
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/PID", str(processo.pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+            else:
+                processo.terminate()
+                processo.wait(timeout=5)
             print(f"  {AMARELO}[ENCERRADO]{RESET} {nome}")
         except Exception:
-            p.kill()
-    print(f"\n  {VERDE}CityGrid Brain encerrado com sucesso.{RESET}")
-    sys.exit(0)
+            processo.kill()
+    print(f"\n  {VERDE}CityGrid Brain encerrado.{RESET}")
+    raise SystemExit(codigo)
 
 
-def aguardar_backend(timeout: int = 30) -> bool:
-    """Aguarda o backend responder antes de abrir o browser."""
-    import urllib.request
-    for _ in range(timeout):
+def aguardar_url(url: str, timeout: int = 30) -> bool:
+    limite = time.monotonic() + timeout
+    while time.monotonic() < limite:
         try:
-            urllib.request.urlopen("http://localhost:8000/", timeout=1)
-            return True
+            with urllib.request.urlopen(url, timeout=1) as resposta:
+                if 200 <= resposta.status < 500:
+                    return True
         except Exception:
-            time.sleep(1)
+            time.sleep(0.5)
     return False
 
 
-def main():
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Inicia a demonstração local do CityGrid Brain")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="verifica pré-requisitos e sai sem iniciar processos",
+    )
+    parser.add_argument(
+        "--sem-navegador",
+        action="store_true",
+        help="não abre o dashboard automaticamente",
+    )
+    args = parser.parse_args()
+
     banner()
+    erros = verificar_pre_requisitos()
+    if erros:
+        print(f"{VERMELHO}Pré-requisitos incompletos:{RESET}")
+        for erro in erros:
+            print(f"  - {erro}")
+        return 1
+    print(f"  {VERDE}[OK]{RESET} Pré-requisitos, modelos e frontend verificados.")
+    if args.check:
+        return 0
 
-    # Registra handler para Ctrl+C encerrar tudo limpo
-    signal.signal(signal.SIGINT,  encerrar_tudo)
+    signal.signal(signal.SIGINT, encerrar_tudo)
     signal.signal(signal.SIGTERM, encerrar_tudo)
-
     python = sys.executable
+    npm = shutil.which("npm.cmd") or shutil.which("npm") or "npm"
 
-    print(f"{CIANO}━━ Iniciando componentes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
-
-    # 1. Simulador IoT — gera leituras a cada 5s
+    print(f"\n{CIANO}━━ Iniciando fluxo canônico ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+    iniciar_processo("Simulador sintético", [python, str(BASE / "simulador_iot.py")])
     iniciar_processo(
-        "Simulador IoT",
-        [python, str(BASE / "simulador_iot.py")],
-    )
-
-    # 2. Motor de Decisão (modo offline, sem Kafka)
-    iniciar_processo(
-        "Motor de Decisão (offline)",
+        "Motor de recomendações",
         [python, str(BASE / "motor_decisao.py"), "--modo=arquivo"],
-        esperar=2,  # aguarda o simulador gerar as primeiras leituras
-    )
-
-    # 3. Backend FastAPI
-    iniciar_processo(
-        "Backend FastAPI  → http://localhost:8000",
-        [python, str(BASE / "backend.py")],
         esperar=1,
     )
+    iniciar_processo(
+        f"Backend FastAPI → {API_URL}",
+        [python, "-m", "uvicorn", "backend:app", "--host", "127.0.0.1", "--port", "8000"],
+        esperar=1,
+    )
+    iniciar_processo(
+        f"Frontend React → {DASHBOARD_URL}",
+        [npm, "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"],
+    )
 
-    print(f"\n  {CIANO}Aguardando backend inicializar{RESET}", end="", flush=True)
-    ok = aguardar_backend(timeout=20)
-    print()
+    api_ok = aguardar_url(f"{API_URL}/api/stats", timeout=35)
+    front_ok = aguardar_url(DASHBOARD_URL, timeout=35)
+    if not api_ok or not front_ok:
+        print(
+            f"  {VERMELHO}[ERRO]{RESET} Inicialização incompleta: "
+            f"API={'OK' if api_ok else 'FALHOU'}, frontend={'OK' if front_ok else 'FALHOU'}"
+        )
+        encerrar_tudo(codigo=1)
 
-    if ok:
-        print(f"  {VERDE}[OK]{RESET}       Backend respondendo em http://localhost:8000")
-    else:
-        print(f"  {AMARELO}[AVISO]{RESET}    Backend demorou para responder — abrindo dashboard mesmo assim")
+    print(f"  {VERDE}[OK]{RESET} API e frontend responderam.")
+    if not args.sem_navegador and os.getenv("CITYGRID_NO_BROWSER") != "1":
+        webbrowser.open(DASHBOARD_URL)
 
-    # 4. Abre o dashboard no navegador
-    dashboard = BASE / "front-end" / "dashboard.html"
-    print(f"\n  {CIANO}[ABRINDO]{RESET}   Dashboard → {dashboard}")
-    webbrowser.open(f"file:///{dashboard.as_posix()}")
+    print(
+        f"""
+{CIANO}━━ Demonstração em execução ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}
 
-    print(f"""
-{CIANO}━━ CityGrid Brain rodando ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}
+  Dashboard      → {DASHBOARD_URL}
+  API             → {API_URL}
+  Documentação   → {API_URL}/docs
 
-  Dashboard Web  →  aberto no navegador (front-end/dashboard.html)
-  Backend API    →  http://localhost:8000
-  Docs da API    →  http://localhost:8000/docs
+  5 segundos reais representam 5 minutos simulados.
+  Os dados são sintéticos e as saídas são recomendações não executadas.
 
-  Dados gerados em tempo real a cada 5 segundos.
-  O motor de decisão analisa cada ciclo e gera alertas.
+  {AMARELO}Pressione Ctrl+C para encerrar todos os processos.{RESET}
+"""
+    )
 
-  {AMARELO}Pressione Ctrl+C para encerrar tudo.{RESET}
-""")
-
-    # Monitora se algum processo morreu inesperadamente
-    try:
-        while True:
-            for nome, p in processos:
-                if p.poll() is not None:
-                    print(f"  {VERMELHO}[ERRO]{RESET} {nome} encerrou inesperadamente (código {p.returncode})")
-            time.sleep(5)
-    except KeyboardInterrupt:
-        encerrar_tudo()
+    while True:
+        for nome, processo in processos:
+            retorno = processo.poll()
+            if retorno is not None:
+                print(
+                    f"  {VERMELHO}[ERRO]{RESET} {nome} encerrou inesperadamente "
+                    f"(código {retorno})"
+                )
+                encerrar_tudo(codigo=1)
+        time.sleep(2)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

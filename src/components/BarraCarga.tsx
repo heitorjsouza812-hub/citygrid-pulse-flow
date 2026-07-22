@@ -1,6 +1,14 @@
 import { cargaColor } from "@/lib/risco";
 
-export function BarraCarga({ pct, capacidade, consumo }: { pct: number; capacidade: number; consumo: number }) {
+export function BarraCarga({
+  pct,
+  capacidade,
+  consumo,
+}: {
+  pct: number;
+  capacidade: number;
+  consumo: number;
+}) {
   const color = cargaColor(pct);
   const clamped = Math.min(100, Math.max(0, pct));
   return (
@@ -13,7 +21,9 @@ export function BarraCarga({ pct, capacidade, consumo }: { pct: number; capacida
       </div>
       <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
         <span style={{ color }}>{pct.toFixed(1)}%</span>
-        <span>{consumo.toFixed(2)} / {capacidade.toFixed(1)} MW</span>
+        <span>
+          {consumo.toFixed(2)} / {capacidade.toFixed(1)} MW
+        </span>
       </div>
     </div>
   );

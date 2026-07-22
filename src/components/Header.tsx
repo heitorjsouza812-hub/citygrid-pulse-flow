@@ -1,23 +1,17 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { Zap, Map, LayoutDashboard, Brain } from "lucide-react";
 import { StatusWebSocket } from "./StatusWebSocket";
-import { STATS_MOCK } from "@/lib/mock-data";
+import { useCityGrid } from "@/lib/citygrid-context";
+import { formatarHorarioSimulado } from "@/lib/citygrid-api";
 
 export function Header() {
-  const [now, setNow] = useState<Date | null>(null);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-
-  useEffect(() => {
-    setNow(new Date());
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const { stats, status, timestampSimulado } = useCityGrid();
 
   const links = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
     { to: "/mapa", label: "Mapa", icon: Map },
-    { to: "/decisoes", label: "Decisões IA", icon: Brain },
+    { to: "/decisoes", label: "Recomendações", icon: Brain },
   ] as const;
 
   return (
@@ -32,7 +26,7 @@ export function Header() {
               CityGrid Brain
             </div>
             <div className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-              SCADA · v4.2
+              Protótipo · Dados sintéticos
             </div>
           </div>
         </Link>
@@ -58,12 +52,14 @@ export function Header() {
 
         <div className="flex items-center gap-4 ml-auto">
           <div className="hidden md:flex items-center gap-4 text-[10px] font-mono text-muted-foreground">
-            <span>CICLO <span className="text-foreground">#{STATS_MOCK.ciclo}</span></span>
-            <span className="tabular-nums text-foreground" suppressHydrationWarning>
-              {now ? now.toLocaleTimeString("pt-BR") : "--:--:--"}
+            <span>
+              CICLO <span className="text-foreground">#{stats.ciclo || "—"}</span>
+            </span>
+            <span className="tabular-nums text-foreground" title="Horário simulado">
+              SIM {formatarHorarioSimulado(timestampSimulado)}
             </span>
           </div>
-          <StatusWebSocket status="conectado" />
+          <StatusWebSocket status={status} />
         </div>
       </div>
     </header>

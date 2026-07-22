@@ -1,12 +1,17 @@
-import type { Risco } from "./mock-data";
+import type { EstadoPrevisao } from "./citygrid-types";
 
-export function riscoColor(r: Risco | "AGUARDANDO"): string {
+export function riscoColor(r: EstadoPrevisao): string {
   switch (r) {
-    case "BAIXO": return "var(--risk-low)";
-    case "MÉDIO": return "var(--risk-med)";
-    case "ALTO": return "var(--risk-high)";
-    case "CRÍTICO": return "var(--risk-crit)";
-    default: return "var(--muted-foreground)";
+    case "BAIXO":
+      return "var(--risk-low)";
+    case "MÉDIO":
+      return "var(--risk-med)";
+    case "ALTO":
+      return "var(--risk-high)";
+    case "CRÍTICO":
+      return "var(--risk-crit)";
+    default:
+      return "var(--muted-foreground)";
   }
 }
 
@@ -19,10 +24,14 @@ export function cargaColor(pct: number): string {
 
 export function urgenciaColor(u: string): string {
   switch (u) {
-    case "critico": return "var(--risk-crit)";
-    case "alto": return "var(--risk-high)";
-    case "atencao": return "var(--risk-med)";
-    default: return "var(--cyan-elec)";
+    case "critico":
+      return "var(--risk-crit)";
+    case "alto":
+      return "var(--risk-high)";
+    case "atencao":
+      return "var(--risk-med)";
+    default:
+      return "var(--cyan-elec)";
   }
 }
 
