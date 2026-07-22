@@ -131,7 +131,7 @@ O resultado sustenta o uso da LSTM como componente preditivo da demonstração n
 | Acurácia balanceada | 0,370 | 0,304 (persistência) |
 | Recall de `CRÍTICO` | 0,142 | 0,070 (persistência) |
 
-O XGBoost aumenta a cobertura de classes como `CRÍTICO` e `MÉDIO`, mas ainda não cumpriu o critério principal de adoção em F1 macro. Por isso, o projeto aplica uma decisão de engenharia explícita: o modelo é exibido como sinal analítico e **não gera recomendações**. O gate exige ganho em F1 macro e ausência de regressão no recall de `CRÍTICO`, sendo reavaliado a partir das métricas reproduzíveis quando um novo modelo é treinado.
+O XGBoost aumenta a cobertura de classes como `CRÍTICO` e `MÉDIO`, mas ainda não cumpriu o critério principal de adoção em F1 macro. Por isso, o projeto aplica uma decisão de engenharia explícita: o modelo é exibido como sinal analítico. O gate exige ganho em F1 macro e ausência de regressão no recall de `CRÍTICO`, sendo reavaliado a partir das métricas reproduzíveis quando um novo modelo é treinado.
 
 Essa separação entre “modelo disponível” e “modelo aprovado para decisão” é parte da confiabilidade do CityGrid Brain.
 
