@@ -16,10 +16,14 @@ import json
 import time
 import sys
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from kafka import KafkaProducer
 from kafka.errors import NoBrokersAvailable
 from colorama import Fore, Style, init
+
+from citygrid_config import carregar_env_local
+
+carregar_env_local()
 
 # Importa o simulador do mesmo diretório
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -35,6 +39,17 @@ KAFKA_BOOTSTRAP    = os.getenv("CITYGRID_KAFKA_BOOTSTRAP", "localhost:9092")
 TOPICO_LEITURAS    = "citygrid-leituras"
 TOPICO_ALERTAS     = "citygrid-alertas"
 INTERVALO_SEGUNDOS = sim.INTERVALO_SEGUNDOS
+
+
+def alinhar_relogio_streaming(agora_utc: datetime | None = None) -> datetime:
+    """Inicia o replay perto do presente para os pontos aparecerem no Grafana."""
+    instante = agora_utc or datetime.now(timezone.utc)
+    if instante.tzinfo is None:
+        instante = instante.replace(tzinfo=timezone.utc)
+    inicio = instante.astimezone(timezone.utc).replace(tzinfo=None, microsecond=0)
+    sim.estado["tempo_simulado"] = inicio
+    sim.estado["ciclo"] = 0
+    return inicio
 
 # ══════════════════════════════════════════════════════════════════
 #  CONEXÃO COM KAFKA
@@ -63,7 +78,7 @@ def conectar_kafka(tentativas: int = 10) -> KafkaProducer:
             time.sleep(5)
 
     print(Fore.RED + "  ❌ Não foi possível conectar ao Kafka. Verifique se o Docker está rodando." + Style.RESET_ALL)
-    print(Fore.YELLOW + "  👉 Execute: docker-compose up -d" + Style.RESET_ALL)
+    print(Fore.YELLOW + "  👉 Execute: docker compose up -d" + Style.RESET_ALL)
     sys.exit(1)
 
 # ══════════════════════════════════════════════════════════════════
@@ -122,6 +137,8 @@ def iniciar_producer():
 ║           CITYGRID BRAIN — KAFKA PRODUCER                       ║
 ╚══════════════════════════════════════════════════════════════════╝
 """)
+    inicio_streaming = alinhar_relogio_streaming()
+    print(f"  Relógio do streaming (UTC): {inicio_streaming.isoformat(timespec='seconds')}")
     print(f"  Conectando ao Kafka em {KAFKA_BOOTSTRAP}...")
     producer      = conectar_kafka()
     msgs_enviadas = 0

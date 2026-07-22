@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from collections import defaultdict, deque
 from datetime import datetime
 
@@ -66,3 +68,22 @@ def test_stats_rotulam_energia_renovavel_sem_alegar_economia() -> None:
     assert stats["energia_renovavel_intervalo_mwh"] == 0.1667
     assert stats["total_recomendacoes"] == 3
     assert stats["zonas_criticas"] == 1
+
+
+def test_ler_ultimas_linhas_respeita_n_com_registros_grandes(tmp_path) -> None:
+    caminho = tmp_path / "telemetria.jsonl"
+    with caminho.open("w", encoding="utf-8") as arquivo:
+        for ciclo in range(250):
+            arquivo.write(json.dumps({"ciclo": ciclo, "payload": "x" * 1200}) + "\n")
+
+    linhas = backend.ler_ultimas_linhas(caminho, n=200)
+
+    assert len(linhas) == 200
+    assert linhas[0]["ciclo"] == 50
+    assert linhas[-1]["ciclo"] == 249
+
+
+def test_versao_publica_da_api_e_consistente() -> None:
+    resposta = asyncio.run(backend.root())
+
+    assert resposta["versao"] == backend.app.version

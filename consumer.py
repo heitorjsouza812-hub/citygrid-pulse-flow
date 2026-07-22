@@ -32,7 +32,10 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 from colorama import Fore, Style, init
 from collections import defaultdict
 
+from citygrid_config import carregar_env_local
+
 init(autoreset=True)
+carregar_env_local()
 
 # ══════════════════════════════════════════════════════════════════
 #  CONFIGURAÇÃO
@@ -102,7 +105,7 @@ def conectar_kafka(tentativas: int = 10) -> KafkaConsumer:
             print(Fore.YELLOW + f"  ⏳ Aguardando Kafka... tentativa {i+1}/{tentativas}" + Style.RESET_ALL)
             time.sleep(5)
 
-    print(Fore.RED + "  ❌ Kafka indisponível. Execute: docker-compose up -d" + Style.RESET_ALL)
+    print(Fore.RED + "  ❌ Kafka indisponível. Execute: docker compose up -d" + Style.RESET_ALL)
     sys.exit(1)
 
 # ══════════════════════════════════════════════════════════════════
@@ -125,7 +128,7 @@ def conectar_influx():
         return client, write_api
     except Exception as e:
         print(Fore.RED + f"  ❌ InfluxDB indisponível: {e}" + Style.RESET_ALL)
-        print(Fore.YELLOW + "  👉 Execute: docker-compose up -d" + Style.RESET_ALL)
+        print(Fore.YELLOW + "  👉 Execute: docker compose up -d" + Style.RESET_ALL)
         sys.exit(1)
 
 # ══════════════════════════════════════════════════════════════════

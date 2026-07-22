@@ -108,7 +108,7 @@ function ZonaPage() {
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap justify-end gap-2">
             <RiscoBadge risco={zona.risco_atual} label="Atual" />
-            <RiscoBadge risco={zona.risco_xgb} label="XGB 30min" />
+            <RiscoBadge risco={zona.risco_xgb} label="XGB analítico 30min" />
             <RiscoBadge risco={zona.risco_lstm} label="LSTM 30min" />
           </div>
           <div className="font-mono text-sm">
@@ -123,7 +123,7 @@ function ZonaPage() {
 
       <section>
         <h2 className="font-display font-extrabold text-sm uppercase tracking-wider mb-2 text-muted-foreground">
-          Qualidade de Energia — referência ANEEL PRODIST Módulo 8
+          Qualidade de Energia — triagem por referências técnicas
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <SemaforoANEEL
