@@ -208,10 +208,6 @@ modelos/                       modelos e scalers treinados
 grafana/provisioning/          datasource e dashboard opcionais
 ```
 
-## Escopo validado e próximos passos
-
-A evidência atual cobre o funcionamento ponta a ponta e o desempenho comparativo na base sintética registrada. O próximo ciclo de pesquisa inclui múltiplas seeds, novas cidades simuladas, calibração do classificador e, mediante parceria técnica, validação com dados anonimizados de medição.
-
 O CityGrid Brain deve ser apresentado como:
 
 > **Uma plataforma de apoio à decisão para uma rede urbana simulada, com previsão de consumo validada contra baseline, governança de modelos e recomendações explicáveis.**
