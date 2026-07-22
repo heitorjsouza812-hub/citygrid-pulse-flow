@@ -31,5 +31,6 @@ colorama>=0.4.6
 
 # ── Utilitários / testes ──────────────────────────────────────────
 python-dateutil>=2.9.0
+python-dotenv>=1.0,<2
 tqdm>=4.66.0
 pytest==8.4.2

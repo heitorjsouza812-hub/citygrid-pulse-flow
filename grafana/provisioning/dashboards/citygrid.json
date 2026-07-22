@@ -40,7 +40,7 @@
       "targets": [
         {
           "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB}" },
-          "query": "from(bucket: \"citygrid\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"consumo_mw\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"consumo_mw\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -79,7 +79,7 @@
       "targets": [
         {
           "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB}" },
-          "query": "from(bucket: \"citygrid\")\n  |> range(start: -2m)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"pct_carga\")\n  |> last()\n  |> yield(name: \"last\")",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"pct_carga\")\n  |> last()\n  |> yield(name: \"last\")",
           "refId": "A"
         }
       ],
@@ -125,7 +125,7 @@
       "targets": [
         {
           "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB}" },
-          "query": "from(bucket: \"citygrid\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"frequencia_hz\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"frequencia_hz\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ],
@@ -152,11 +152,11 @@
       "targets": [
         {
           "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB}" },
-          "query": "from(bucket: \"citygrid\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"thd_tensao_pct\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"thd_tensao_pct\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ],
-      "title": "THD de Tensão % (limite ANEEL: 8%)",
+      "title": "THD instantâneo de tensão % (proxy experimental)",
       "type": "timeseries"
     },
     {
@@ -179,7 +179,7 @@
       "targets": [
         {
           "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB}" },
-          "query": "from(bucket: \"citygrid\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"geracao_total_mw\")\n  |> aggregateWindow(every: 30s, fn: sum, createEmpty: false)\n  |> yield(name: \"total_renovavel\")",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"geracao_total_mw\")\n  |> aggregateWindow(every: 30s, fn: sum, createEmpty: false)\n  |> yield(name: \"total_renovavel\")",
           "refId": "A"
         }
       ],
@@ -217,7 +217,7 @@
       "targets": [
         {
           "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB}" },
-          "query": "from(bucket: \"citygrid\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"clima_temp_c\")\n  |> filter(fn: (r) => r.zona_id == \"zona_centro\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"clima_temp_c\")\n  |> filter(fn: (r) => r.zona_id == \"zona_centro\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ],
@@ -244,7 +244,7 @@
       "targets": [
         {
           "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB}" },
-          "query": "from(bucket: \"citygrid\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"ve_postos_em_uso\")\n  |> aggregateWindow(every: 30s, fn: sum, createEmpty: false)\n  |> yield(name: \"VEs_em_carga\")",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"leitura_zona\")\n  |> filter(fn: (r) => r._field == \"ve_postos_em_uso\")\n  |> aggregateWindow(every: 30s, fn: sum, createEmpty: false)\n  |> yield(name: \"VEs_em_carga\")",
           "refId": "A"
         }
       ],

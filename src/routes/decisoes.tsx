@@ -100,7 +100,7 @@ function DecisoesPage() {
   return (
     <main className="mx-auto max-w-[1600px] px-4 lg:px-6 py-6 space-y-6">
       <div>
-        <h1 className="font-display font-extrabold text-3xl">Recomendações do Protótipo</h1>
+        <h1 className="font-display font-extrabold text-3xl">Recomendações da Simulação</h1>
         <p className="text-sm text-muted-foreground">
           Sugestões geradas em simulação. Elas não são comandos executados nem comprovam economia de
           energia.

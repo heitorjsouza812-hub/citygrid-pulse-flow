@@ -1,19 +1,19 @@
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║         CITYGRID BRAIN — BACKEND API v1.0                       ║
+║         CITYGRID BRAIN — BACKEND API v2.0                       ║
 ║   FastAPI + WebSocket para o Dashboard em Tempo Real            ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 Endpoints:
   GET  /api/zonas          — estado atual de todas as zonas + previsão ML
-  GET  /api/alertas        — últimas N decisões/alertas do motor
+  GET  /api/alertas        — últimas N recomendações do motor
   GET  /api/stats          — estatísticas globais da cidade
   GET  /api/historico/{z}  — histórico de consumo de uma zona (últimas 2h)
   WS   /ws                 — push de atualizações a cada 5s para o dashboard
 
 Fontes de dados:
   - dados_citygrid.jsonl   — leituras do simulador IoT
-  - logs/decisoes.jsonl    — ações/alertas do motor de decisão
+  - logs/decisoes.jsonl    — recomendações auditáveis do motor de decisão
   - modelos/               — modelos XGBoost e LSTM treinados
 """
 
@@ -150,7 +150,7 @@ def carregar_modelos():
 
 def ler_ultimas_linhas(caminho: Path, n: int = 200) -> List[dict]:
     """Lê as últimas N linhas de um JSONL de forma eficiente."""
-    if not caminho.exists():
+    if n <= 0 or not caminho.exists():
         return []
     try:
         with open(caminho, "rb") as f:
@@ -158,23 +158,33 @@ def ler_ultimas_linhas(caminho: Path, n: int = 200) -> List[dict]:
             tamanho = f.tell()
             if tamanho == 0:
                 return []
-            # Lê bloco do final
-            bloco = min(tamanho, n * 300)
-            f.seek(max(0, tamanho - bloco))
-            raw = f.read()
-        linhas = raw.decode("utf-8", errors="replace").splitlines()
-        resultados = []
-        for linha in reversed(linhas):
-            linha = linha.strip()
-            if not linha:
-                continue
-            try:
-                resultados.append(json.loads(linha))
-            except json.JSONDecodeError:
-                continue
-            if len(resultados) >= n:
-                break
-        return list(reversed(resultados))
+            posicao = tamanho
+            buffer = b""
+            tamanho_bloco = 64 * 1024
+
+            while posicao > 0:
+                leitura = min(tamanho_bloco, posicao)
+                posicao -= leitura
+                f.seek(posicao)
+                buffer = f.read(leitura) + buffer
+
+                linhas = buffer.decode("utf-8", errors="replace").splitlines()
+                if posicao > 0 and linhas:
+                    linhas = linhas[1:]  # primeira linha ainda pode estar incompleta
+
+                resultados = []
+                for linha in reversed(linhas):
+                    linha = linha.strip()
+                    if not linha:
+                        continue
+                    try:
+                        resultados.append(json.loads(linha))
+                    except json.JSONDecodeError:
+                        continue
+                    if len(resultados) >= n:
+                        return list(reversed(resultados))
+
+            return list(reversed(resultados))
     except Exception as e:
         logger.error(f"Erro ao ler {caminho}: {e}")
         return []
@@ -374,7 +384,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="CityGrid Brain API",
-    description="API de um protótipo experimental com dados sintéticos",
+    description="API da demonstração científica com dados sintéticos e previsões reproduzíveis",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -496,7 +506,7 @@ async def websocket_endpoint(ws: WebSocket):
 async def root():
     return {
         "projeto": "CityGrid Brain",
-        "versao":  "1.0.0",
+        "versao":  app.version,
         "status":  "online",
         "endpoints": ["/api/zonas", "/api/alertas", "/api/stats", "/api/historico/{zona_id}", "/ws"],
     }

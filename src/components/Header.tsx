@@ -26,7 +26,7 @@ export function Header() {
               CityGrid Brain
             </div>
             <div className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground font-mono">
-              Protótipo · Dados sintéticos
+              Demonstração científica · Dados sintéticos
             </div>
           </div>
         </Link>

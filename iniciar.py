@@ -41,8 +41,8 @@ def banner() -> None:
         + BOLD
         + """
 ╔══════════════════════════════════════════════════════════════════╗
-║             CITYGRID BRAIN — PROTÓTIPO EXPERIMENTAL             ║
-║       dados sintéticos · simulação acelerada · modo local       ║
+║             CITYGRID BRAIN — DEMONSTRAÇÃO CIENTÍFICA             ║
+║       dados sintéticos · simulação acelerada · modo local        ║
 ╚══════════════════════════════════════════════════════════════════╝
 """
         + RESET

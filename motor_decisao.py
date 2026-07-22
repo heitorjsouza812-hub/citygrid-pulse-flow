@@ -29,6 +29,7 @@ import pandas as pd
 from datetime import datetime
 from collections import deque
 from dataclasses import dataclass, field, asdict
+from pathlib import Path
 from typing import Optional
 from colorama import Fore, Style, init
 
@@ -45,8 +46,11 @@ import torch
 import torch.nn as nn
 import xgboost as xgb
 
+from citygrid_config import carregar_env_local
+
 
 init(autoreset=True)
+carregar_env_local()
 
 # ══════════════════════════════════════════════════════════════════
 #  CONFIGURAÇÃO
@@ -86,6 +90,31 @@ PRIORIDADE     = {"CRÍTICO": 4, "ALTO": 3, "MÉDIO": 2, "BAIXO": 1}
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(filename="logs/citygrid.log", level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(message)s")
+
+
+def xgboost_aprovado_para_recomendacoes(caminho: Path | None = None) -> bool:
+    """Exige ganho em F1 macro sem degradar o recall da classe crítica."""
+    caminho_metricas = caminho or (
+        Path(__file__).resolve().parent / "graficos" / "metricas_experimento.json"
+    )
+    try:
+        metricas = json.loads(caminho_metricas.read_text(encoding="utf-8"))
+        xgb_metricas = metricas["xgboost"]
+        recall_modelo = float(xgb_metricas["conclusao"]["recall_critico"])
+        recall_persistencia = float(
+            xgb_metricas["baselines_teste"]["persistencia_risco_atual"]
+            ["por_classe"]["CRÍTICO"]["recall"]
+        )
+        return bool(
+            xgb_metricas["conclusao"]["supera_persistencia_f1_macro"]
+            and recall_modelo >= recall_persistencia
+        )
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        logging.warning("Métricas do XGBoost indisponíveis; recomendações mantidas desabilitadas")
+        return False
+
+
+XGBOOST_APROVADO_RECOMENDACOES = xgboost_aprovado_para_recomendacoes()
 
 # ══════════════════════════════════════════════════════════════════
 #  DATACLASSES
@@ -241,31 +270,45 @@ def avaliar_heuristicas(zona_id: str, dados: dict) -> Optional[Acao]:
             origem="heuristica",
         )
 
-    # ── Regra R2 — Frequência fora do limite ANEEL PRODIST M8 ───────────────
+    # ── Regra R2 — Faixas de frequência de referência ───────────────────────
     if freq < 59.5 or freq > 60.5:
         return Acao(
             tipo="ALERTA_FREQUENCIA",
             urgencia="ALTA",
             zona_alvo=zona_id,
-            descricao=f"Frequência em {freq:.3f} Hz — fora do limite ANEEL (59,5–60,5 Hz)",
+            descricao=f"Frequência em {freq:.3f} Hz — fora da faixa de retorno após distúrbio",
             explicacao=(
-                f"Regra R2: frequencia_hz={freq:.3f} Hz fora do limite precário ANEEL PRODIST M8. "
-                f"Indica desequilíbrio entre geração e carga na rede."
+                f"Regra R2: frequencia_hz={freq:.3f} Hz fora da faixa de retorno após distúrbio "
+                f"de 59,5–60,5 Hz usada como referência no protótipo. Requer revisão imediata."
             ),
             confianca=None,
             origem="heuristica",
         )
 
-    # ── Regra R3 — THD acima do limite crítico ANEEL ────────────────────────
-    if thd > 8.0:
+    if freq < 59.9 or freq > 60.1:
+        return Acao(
+            tipo="ATENCAO_FREQUENCIA",
+            urgencia="MÉDIA",
+            zona_alvo=zona_id,
+            descricao=f"Frequência em {freq:.3f} Hz — fora da faixa normal de 59,9–60,1 Hz",
+            explicacao=(
+                f"Regra R2: frequencia_hz={freq:.3f} Hz permanece na faixa de retorno "
+                f"pós-distúrbio, mas está fora da faixa normal; recomenda-se acompanhamento."
+            ),
+            confianca=None,
+            origem="heuristica",
+        )
+
+    # ── Regra R3 — Proxy instantâneo de distorção harmônica ─────────────────
+    if thd > 10.0:
         return Acao(
             tipo="ALERTA_QUALIDADE_ENERGIA",
             urgencia="ALTA",
             zona_alvo=zona_id,
-            descricao=f"THD de tensão em {thd:.1f}% — acima do limite ANEEL (8%)",
+            descricao=f"THD instantâneo em {thd:.1f}% — acima do limiar experimental de 10%",
             explicacao=(
-                f"Regra R3: thd_tensao_pct={thd:.1f}% > 8% (ANEEL PRODIST M8, Seção 3.6). "
-                f"Distorção harmônica pode danificar equipamentos e causar falhas."
+                f"Regra R3: thd_tensao_pct={thd:.1f}% > 10%. Este limiar experimental "
+                f"não equivale ao DTT95 regulatório; a leitura instantânea serve como triagem."
             ),
             confianca=None,
             origem="heuristica",
@@ -339,12 +382,17 @@ def avaliar_xgboost(zona_id: str, dados: dict, modelo_xgb) -> tuple:
     confianca  = float(proba[idx])
     distribuicao = {CLASSES_RISCO[i]: round(float(p), 3) for i, p in enumerate(proba)}
 
+    status_uso = (
+        "Critério temporal atendido; elegível para recomendações com revisão humana."
+        if XGBOOST_APROVADO_RECOMENDACOES
+        else "Modo informativo: ainda não validado para gerar recomendações."
+    )
     explicacao = (
         f"XGBoost estimou risco {risco} para 30 minutos à frente, com score bruto de {confianca*100:.1f}%. "
         f"Features de entrada: pct_carga={dados.get('pct_carga',0):.1f}%, "
         f"anomalia={'sim' if dados.get('anomalia_flag') else 'não'}, "
         f"temperatura={dados.get('clima_temp_c',0):.1f}°C. "
-        f"Distribuição: {distribuicao}"
+        f"Distribuição: {distribuicao}. {status_uso}"
     )
 
     return risco, confianca, explicacao
@@ -532,7 +580,7 @@ class MotorDecisao:
                 acoes_ciclo.append(acao_heur)
                 estados[zona_id].acoes.append(acao_heur)
 
-            elif risco_xgb in ["CRÍTICO", "ALTO"]:
+            elif XGBOOST_APROVADO_RECOMENDACOES and risco_xgb in ["CRÍTICO", "ALTO"]:
                 acao = Acao(
                     tipo       = "REVISAR_RISCO_PREVISTO_XGB",
                     urgencia   = risco_xgb,
@@ -639,9 +687,9 @@ class MotorDecisao:
                 f"{prev:>8}"
             )
 
-        # Ações do ciclo
+        # Recomendações do ciclo
         if acoes:
-            print(f"\n{Fore.BLUE}━━ AÇÕES DESTE CICLO ({len(acoes)}) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Style.RESET_ALL}")
+            print(f"\n{Fore.BLUE}━━ RECOMENDAÇÕES DESTE CICLO ({len(acoes)}) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Style.RESET_ALL}")
             URG_COR = {"CRÍTICA":Fore.RED+Style.BRIGHT,"ALTA":Fore.RED,"MÉDIA":Fore.YELLOW,"BAIXA":Fore.GREEN}
             for acao in acoes:
                 cor = URG_COR.get(acao.urgencia, Fore.WHITE)
@@ -652,7 +700,7 @@ class MotorDecisao:
 
         # Stats
         print(f"\n{Fore.BLUE}━━ ESTATÍSTICAS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Style.RESET_ALL}")
-        print(f"  Total de ações tomadas : {self.stats['total_acoes']}")
+        print(f"  Total de recomendações : {self.stats['total_acoes']}")
         print(f"  Por origem  : {self.stats['por_origem']}")
         print(f"  Por urgência: {self.stats['por_urgencia']}")
         lat = self.stats.get
@@ -693,7 +741,7 @@ def conectar_kafka(tentativas: int = 10) -> KafkaConsumer:
             print(Fore.YELLOW + f"  [AGUARDANDO] Kafka... tentativa {i+1}/{tentativas}" + Style.RESET_ALL)
             time.sleep(5)
 
-    print(Fore.RED + "  [ERRO] Kafka indisponivel. Execute: docker-compose up -d" + Style.RESET_ALL)
+    print(Fore.RED + "  [ERRO] Kafka indisponivel. Execute: docker compose up -d" + Style.RESET_ALL)
     sys.exit(1)
 
 

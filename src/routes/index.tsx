@@ -42,7 +42,7 @@ function Dashboard() {
       <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
         <div>
           <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground mb-1">
-            Protótipo experimental · Visão geral
+            Demonstração científica · Visão geral
           </div>
           <h1 className="font-display font-semibold text-xl leading-none tracking-tight text-foreground">
             Rede Urbana Simulada
@@ -53,7 +53,7 @@ function Dashboard() {
         </div>
         <div className="hidden md:flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
           <span className="rounded-sm border border-border bg-card px-2 py-1">
-            ANEEL PRODIST M8
+            Referências técnicas
           </span>
           <span className="rounded-sm border border-border bg-card px-2 py-1">60 Hz</span>
         </div>

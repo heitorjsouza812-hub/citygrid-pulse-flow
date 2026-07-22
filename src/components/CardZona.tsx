@@ -42,7 +42,7 @@ export function CardZona({ zona, compact = false }: { zona: Zona; compact?: bool
 
       <div className="flex flex-wrap gap-1.5 mb-3">
         <RiscoBadge risco={zona.risco_atual} label="Atual" />
-        <RiscoBadge risco={zona.risco_xgb} label="XGB 30min" />
+        <RiscoBadge risco={zona.risco_xgb} label="XGB analítico 30min" />
         <RiscoBadge risco={zona.risco_lstm} label="LSTM 30min" />
       </div>
 

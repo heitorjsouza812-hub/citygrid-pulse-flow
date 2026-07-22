@@ -1,4 +1,4 @@
-# Integração opcional/experimental. O modo de feira (`python iniciar.py`) não depende deste arquivo.
+# Integração opcional de streaming. O modo de feira (`python iniciar.py`) não depende deste arquivo.
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0

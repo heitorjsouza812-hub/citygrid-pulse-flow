@@ -77,14 +77,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CityGrid Brain — Protótipo de Rede Urbana Simulada" },
+      { title: "CityGrid Brain — Demonstração Científica de Rede Urbana Simulada" },
       {
         name: "description",
         content:
-          "Protótipo experimental com dados sintéticos para monitoramento e recomendações simuladas em uma rede elétrica urbana.",
+          "Demonstração científica com dados sintéticos, previsão de consumo e recomendações explicáveis para uma rede elétrica urbana simulada.",
       },
       { name: "author", content: "CityGrid Brain" },
-      { property: "og:title", content: "CityGrid Brain — Protótipo Experimental" },
+      { property: "og:title", content: "CityGrid Brain — Demonstração Científica" },
       {
         property: "og:description",
         content: "Demonstração científica com dados sintéticos e simulação acelerada.",

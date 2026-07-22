@@ -40,10 +40,14 @@ export function aneelFreq(hz: number): "verde" | "amarelo" | "vermelho" {
   if (hz >= 59.5 && hz <= 60.5) return "amarelo";
   return "vermelho";
 }
-export function aneelTHD(thd: number): "verde" | "amarelo" | "vermelho" {
+export function classificarTHDInstantaneo(thd: number): "verde" | "amarelo" | "vermelho" {
   if (thd < 5) return "verde";
-  if (thd <= 8) return "amarelo";
+  if (thd <= 10) return "amarelo";
   return "vermelho";
+}
+
+export function aneelTHD(thd: number): "verde" | "amarelo" | "vermelho" {
+  return classificarTHDInstantaneo(thd);
 }
 export function aneelFP(fp: number): "verde" | "amarelo" | "vermelho" {
   return fp >= 0.92 ? "verde" : "vermelho";
