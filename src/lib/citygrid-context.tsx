@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,12 +10,23 @@ import {
 } from "react";
 
 import {
+  ativarCenario as ativarCenarioApi,
   buscarEstadoInicial,
   buscarHistorico,
+  limparCenario as limparCenarioApi,
   normalizarAtualizacao,
   urlWebSocket,
 } from "./citygrid-api";
-import type { HistoricoPonto, Recomendacao, Stats, StatusConexao, Zona } from "./citygrid-types";
+import type {
+  CenarioManual,
+  HistoricoPonto,
+  Recomendacao,
+  SnapshotTelemetria,
+  Stats,
+  StatusConexao,
+  TipoCenario,
+  Zona,
+} from "./citygrid-types";
 
 const STATS_VAZIAS: Stats = {
   consumo_total_mw: 0,
@@ -28,6 +40,7 @@ const STATS_VAZIAS: Stats = {
   intervalo_simulado_minutos: 5,
   ciclo: 0,
   evento_ativo: null,
+  cenario_manual: null,
   dados_sinteticos: true,
 };
 
@@ -37,9 +50,13 @@ interface CityGridContextValue {
   recomendacoes: Recomendacao[];
   status: StatusConexao;
   timestampSimulado: string | null;
+  snapshots: SnapshotTelemetria[];
+  cenarioManual: CenarioManual | null;
   erro: string | null;
   atualizar: () => Promise<void>;
   carregarHistorico: (zonaId: string) => Promise<HistoricoPonto[]>;
+  ativarCenario: (tipo: TipoCenario) => Promise<void>;
+  limparCenario: () => Promise<void>;
 }
 
 const CityGridContext = createContext<CityGridContextValue | null>(null);
@@ -50,24 +67,51 @@ export function CityGridProvider({ children }: { children: ReactNode }) {
   const [recomendacoes, setRecomendacoes] = useState<Recomendacao[]>([]);
   const [status, setStatus] = useState<StatusConexao>("conectando");
   const [timestampSimulado, setTimestampSimulado] = useState<string | null>(null);
+  const [snapshots, setSnapshots] = useState<SnapshotTelemetria[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const ativo = useRef(true);
 
-  async function atualizar() {
-    try {
-      const estado = await buscarEstadoInicial();
-      if (!ativo.current) return;
+  const aplicarEstado = useCallback(
+    (estado: {
+      zonas: Zona[];
+      stats: Stats;
+      recomendacoes: Recomendacao[];
+      timestampSimulado: string | null;
+    }) => {
       setZonas(estado.zonas);
       setStats(estado.stats);
       setRecomendacoes(estado.recomendacoes);
-      setTimestampSimulado(estado.zonas[0]?.timestamp ?? null);
+      setTimestampSimulado(estado.timestampSimulado);
+      setSnapshots((anteriores) => {
+        const ultimo = anteriores.at(-1);
+        if (ultimo?.ciclo === estado.stats.ciclo) return anteriores;
+        return [
+          ...anteriores,
+          {
+            ciclo: estado.stats.ciclo,
+            timestamp: estado.timestampSimulado,
+            zonas: estado.zonas,
+            stats: estado.stats,
+            recomendacoes: estado.recomendacoes,
+          },
+        ].slice(-48);
+      });
+    },
+    [],
+  );
+
+  const atualizar = useCallback(async () => {
+    try {
+      const estado = await buscarEstadoInicial();
+      if (!ativo.current) return;
+      aplicarEstado({ ...estado, timestampSimulado: estado.zonas[0]?.timestamp ?? null });
       setErro(null);
     } catch (error) {
       if (!ativo.current) return;
       setErro(error instanceof Error ? error.message : "Backend indisponível");
       setStatus("offline");
     }
-  }
+  }, [aplicarEstado]);
 
   useEffect(() => {
     ativo.current = true;
@@ -86,11 +130,7 @@ export function CityGridProvider({ children }: { children: ReactNode }) {
       socket.onmessage = (evento) => {
         if (!ativo.current) return;
         try {
-          const update = normalizarAtualizacao(JSON.parse(evento.data));
-          setZonas(update.zonas);
-          setStats(update.stats);
-          setRecomendacoes(update.recomendacoes);
-          setTimestampSimulado(update.timestampSimulado);
+          aplicarEstado(normalizarAtualizacao(JSON.parse(evento.data)));
         } catch {
           setErro("Atualização recebida em formato inválido");
         }
@@ -111,6 +151,16 @@ export function CityGridProvider({ children }: { children: ReactNode }) {
       if (reconectarId) clearTimeout(reconectarId);
       socket?.close();
     };
+  }, [aplicarEstado, atualizar]);
+
+  const ativarCenario = useCallback(async (tipo: TipoCenario) => {
+    const cenario = await ativarCenarioApi(tipo);
+    setStats((anterior) => ({ ...anterior, cenario_manual: cenario }));
+  }, []);
+
+  const limparCenario = useCallback(async () => {
+    await limparCenarioApi();
+    setStats((anterior) => ({ ...anterior, cenario_manual: null }));
   }, []);
 
   const valor = useMemo<CityGridContextValue>(
@@ -120,11 +170,26 @@ export function CityGridProvider({ children }: { children: ReactNode }) {
       recomendacoes,
       status,
       timestampSimulado,
+      snapshots,
+      cenarioManual: stats.cenario_manual,
       erro,
       atualizar,
       carregarHistorico: buscarHistorico,
+      ativarCenario,
+      limparCenario,
     }),
-    [zonas, stats, recomendacoes, status, timestampSimulado, erro],
+    [
+      zonas,
+      stats,
+      recomendacoes,
+      status,
+      timestampSimulado,
+      snapshots,
+      erro,
+      atualizar,
+      ativarCenario,
+      limparCenario,
+    ],
   );
 
   return <CityGridContext.Provider value={valor}>{children}</CityGridContext.Provider>;

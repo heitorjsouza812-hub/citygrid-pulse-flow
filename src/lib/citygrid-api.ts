@@ -1,6 +1,7 @@
 import type {
   AtualizacaoWS,
   BatModo,
+  CenarioManual,
   EstadoPrevisao,
   HistoricoPonto,
   Recomendacao,
@@ -31,9 +32,12 @@ const COORDENADAS: Record<string, [number, number]> = {
   zona_aeroporto: [80, 82],
 };
 
-const API_BASE = (
-  (import.meta.env.VITE_CITYGRID_API_URL as string | undefined) ?? "http://127.0.0.1:8000"
-).replace(/\/$/, "");
+// Sem variável de ambiente, usa o mesmo host do dashboard. O Vite encaminha
+// /api e /ws ao FastAPI no desenvolvimento, permitindo uma demonstração via ngrok.
+const API_BASE = ((import.meta.env.VITE_CITYGRID_API_URL as string | undefined) ?? "").replace(
+  /\/$/,
+  "",
+);
 
 export function formatarHorarioSimulado(valor: string | null | undefined): string {
   if (!valor) return "--:--:--";
@@ -117,6 +121,32 @@ export function normalizarZona(valor: unknown): Zona {
   };
 }
 
+function normalizarCenario(valor: unknown): CenarioManual | null {
+  const raw = registro(valor);
+  const tipo = texto(raw.tipo);
+  if (tipo !== "tempestade" && tipo !== "incendio" && tipo !== "pico_consumo") return null;
+  const impactos = registro(raw.impactos);
+  return {
+    id: texto(raw.id),
+    tipo,
+    nome: texto(raw.nome),
+    descricao: texto(raw.descricao),
+    zonas_afetadas: Array.isArray(raw.zonas_afetadas)
+      ? raw.zonas_afetadas.filter((zona): zona is string => typeof zona === "string")
+      : [],
+    ciclo_inicio: numero(raw.ciclo_inicio),
+    ciclo_fim: numero(raw.ciclo_fim),
+    ciclos_restantes: numero(raw.ciclos_restantes),
+    impactos: {
+      consumo_pct: numero(impactos.consumo_pct),
+      geracao_pct: numero(impactos.geracao_pct),
+      frequencia_delta_hz: numero(impactos.frequencia_delta_hz),
+      thd_delta_pct: numero(impactos.thd_delta_pct),
+      bateria_delta_pct: numero(impactos.bateria_delta_pct),
+    },
+  };
+}
+
 export function normalizarStats(valor: unknown, ciclo = 0): Stats {
   const raw = registro(valor);
   return {
@@ -131,6 +161,7 @@ export function normalizarStats(valor: unknown, ciclo = 0): Stats {
     intervalo_simulado_minutos: numero(raw.intervalo_simulado_minutos, 5),
     ciclo,
     evento_ativo: textoOpcional(raw.evento_ativo),
+    cenario_manual: normalizarCenario(raw.cenario_manual),
     dados_sinteticos: raw.dados_sinteticos !== false,
   };
 }
@@ -192,9 +223,7 @@ export function normalizarHistorico(valor: unknown): HistoricoPonto[] {
 
 async function buscarJson(caminho: string): Promise<unknown> {
   const resposta = await fetch(`${API_BASE}${caminho}`);
-  if (!resposta.ok) {
-    throw new Error(`API respondeu HTTP ${resposta.status}`);
-  }
+  if (!resposta.ok) throw new Error(`API respondeu HTTP ${resposta.status}`);
   return resposta.json();
 }
 
@@ -223,8 +252,31 @@ export async function buscarHistorico(zonaId: string): Promise<HistoricoPonto[]>
   );
 }
 
+export async function ativarCenario(tipo: CenarioManual["tipo"]): Promise<CenarioManual> {
+  const resposta = await fetch(`${API_BASE}/api/simulacao/evento`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tipo }),
+  });
+  if (!resposta.ok) throw new Error(`Não foi possível iniciar o cenário (HTTP ${resposta.status})`);
+  const cenario = normalizarCenario(await resposta.json());
+  if (!cenario) throw new Error("A API devolveu um cenário inválido");
+  return cenario;
+}
+
+export async function limparCenario(): Promise<void> {
+  const resposta = await fetch(`${API_BASE}/api/simulacao/evento`, { method: "DELETE" });
+  if (!resposta.ok)
+    throw new Error(`Não foi possível encerrar o cenário (HTTP ${resposta.status})`);
+}
+
 export function urlWebSocket(): string {
-  return `${API_BASE.replace(/^http/, "ws")}/ws`;
+  if (API_BASE) return `${API_BASE.replace(/^http/, "ws")}/ws`;
+  if (typeof window !== "undefined") {
+    const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocolo}//${window.location.host}/ws`;
+  }
+  return "ws://127.0.0.1:8000/ws";
 }
 
 export function normalizarAtualizacao(valor: unknown): {

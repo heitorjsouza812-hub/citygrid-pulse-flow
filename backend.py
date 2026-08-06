@@ -27,9 +27,12 @@ import logging
 import numpy as np
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
+from uuid import uuid4
+
+from pydantic import BaseModel
 
 # FastAPI
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -86,6 +89,65 @@ _cache: Dict[str, Any] = {
     "ultima_leitura": None,
     "ultima_chave_por_zona": {},
 }
+
+# Cenários são projeções de demonstração em memória. Eles não modificam o JSONL,
+# o simulador, os modelos treinados ou as recomendações auditáveis do motor.
+CENARIOS_MANUAIS: Dict[str, Dict[str, Any]] = {
+    "tempestade": {
+        "nome": "Tempestade severa",
+        "descricao": "Redução de geração distribuída e instabilidade localizada por intempérie.",
+        "zonas_afetadas": ["zona_norte", "zona_oeste", "zona_aeroporto"],
+        "impactos": {
+            "consumo_pct": 8.0,
+            "geracao_pct": -60.0,
+            "frequencia_delta_hz": -0.12,
+            "thd_delta_pct": 4.0,
+            "bateria_delta_pct": -12.0,
+        },
+    },
+    "incendio": {
+        "nome": "Incêndio urbano",
+        "descricao": "Cenário de contingência com prioridade a cargas essenciais e restrição operacional.",
+        "zonas_afetadas": ["zona_centro", "zona_hospitalar"],
+        "impactos": {
+            "consumo_pct": 12.0,
+            "geracao_pct": -10.0,
+            "frequencia_delta_hz": -0.08,
+            "thd_delta_pct": 3.5,
+            "bateria_delta_pct": -16.0,
+        },
+    },
+    "pico_consumo": {
+        "nome": "Pico de consumo",
+        "descricao": "Elevação coordenada de demanda em horários de máxima utilização urbana.",
+        "zonas_afetadas": ["zona_sul", "zona_centro", "zona_universitaria"],
+        "impactos": {
+            "consumo_pct": 28.0,
+            "geracao_pct": 0.0,
+            "frequencia_delta_hz": -0.1,
+            "thd_delta_pct": 2.8,
+            "bateria_delta_pct": -10.0,
+        },
+    },
+}
+_cenario_manual: Optional[Dict[str, Any]] = None
+
+
+class EventoManualRequest(BaseModel):
+    tipo: Literal["tempestade", "incendio", "pico_consumo"]
+
+
+def cenario_manual_atual(ciclo: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    """Devolve o cenário de interface ativo e o encerra ao avançar os ciclos simulados."""
+    global _cenario_manual
+    if _cenario_manual is None:
+        return None
+    ciclo_referencia = int(_cache.get("ciclo_atual", 0) if ciclo is None else ciclo)
+    restante = int(_cenario_manual["ciclo_fim"]) - ciclo_referencia + 1
+    if restante <= 0:
+        _cenario_manual = None
+        return None
+    return {**_cenario_manual, "ciclos_restantes": restante}
 
 # ══════════════════════════════════════════════════════════════════
 #  ARQUITETURA LSTM (igual ao treinamento)
@@ -244,11 +306,13 @@ def calcular_stats(
         ),
         "intervalo_simulado_minutos": intervalo_minutos,
         "evento_ativo": zonas[0].get("evento"),
+        "cenario_manual": cenario_manual_atual(),
         "dados_sinteticos": True,
     }
 
+
 # ══════════════════════════════════════════════════════════════════
-#  INFERÊNCIA ML
+
 
 
 def inferir_xgboost(dados: dict) -> tuple:
@@ -398,7 +462,7 @@ app.add_middleware(
         "http://localhost:4173",
     ],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -464,8 +528,8 @@ async def get_alertas(n: int = 20):
 
 @app.get("/api/stats")
 async def get_stats():
-    """Retorna estatísticas globais da cidade."""
-    return _cache["stats"]
+    """Retorna estatísticas globais da cidade e o cenário visual em memória."""
+    return {**_cache["stats"], "cenario_manual": cenario_manual_atual()}
 
 
 @app.get("/api/historico/{zona_id}")
@@ -475,15 +539,49 @@ async def get_historico(zona_id: str, ultimas: int = 48):
     if not hist:
         # Tenta ler mais do JSONL
         todas = ler_ultimas_linhas(ARQUIVO_JSONL, n=500)
-        hist  = [l for l in todas if l.get("zona_id") == zona_id]
+        hist = [l for l in todas if l.get("zona_id") == zona_id]
     return hist[-ultimas:]
+
+
+@app.get("/api/simulacao/evento")
+async def get_cenario_evento():
+    """Estado do cenário visual de demonstração; não altera a telemetria original."""
+    return cenario_manual_atual()
+
+
+@app.post("/api/simulacao/evento")
+async def iniciar_cenario_evento(payload: EventoManualRequest):
+    """Inicia uma projeção operacional efêmera para a interface da demonstração."""
+    global _cenario_manual
+    modelo = CENARIOS_MANUAIS[payload.tipo]
+    ciclo_inicio = int(_cache.get("ciclo_atual", 0))
+    duracao_ciclos = 6
+    _cenario_manual = {
+        "id": str(uuid4()),
+        "tipo": payload.tipo,
+        "nome": modelo["nome"],
+        "descricao": modelo["descricao"],
+        "zonas_afetadas": modelo["zonas_afetadas"],
+        "impactos": modelo["impactos"],
+        "ciclo_inicio": ciclo_inicio,
+        "ciclo_fim": ciclo_inicio + duracao_ciclos - 1,
+    }
+    return cenario_manual_atual(ciclo_inicio)
+
+
+@app.delete("/api/simulacao/evento")
+async def encerrar_cenario_evento():
+    """Encerra a projeção manual sem alterar arquivos, dados ou modelos."""
+    global _cenario_manual
+    _cenario_manual = None
+    return {"ok": True}
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws_manager.conectar(ws)
     try:
-        # Envia estado atual imediatamente ao conectar
+
         await ws.send_json({
             "tipo":      "update",
             "ciclo":     _cache["ciclo_atual"],

@@ -70,6 +70,28 @@ def test_stats_rotulam_energia_renovavel_sem_alegar_economia() -> None:
     assert stats["zonas_criticas"] == 1
 
 
+def test_cenario_manual_expira_por_ciclo_sem_alterar_telemetria() -> None:
+    anterior = backend._cenario_manual
+    try:
+        backend._cenario_manual = {
+            "id": "teste",
+            "tipo": "pico_consumo",
+            "nome": "Pico de consumo",
+            "descricao": "teste",
+            "zonas_afetadas": ["zona_centro"],
+            "impactos": {},
+            "ciclo_inicio": 10,
+            "ciclo_fim": 12,
+        }
+        ativo = backend.cenario_manual_atual(10)
+        assert ativo is not None
+        assert ativo["ciclos_restantes"] == 3
+        assert backend.cenario_manual_atual(13) is None
+        assert backend._cenario_manual is None
+    finally:
+        backend._cenario_manual = anterior
+
+
 def test_ler_ultimas_linhas_respeita_n_com_registros_grandes(tmp_path) -> None:
     caminho = tmp_path / "telemetria.jsonl"
     with caminho.open("w", encoding="utf-8") as arquivo:

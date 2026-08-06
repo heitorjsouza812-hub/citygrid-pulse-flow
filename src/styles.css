@@ -175,3 +175,514 @@
 .animate-slide-in-up {
   animation: slide-in-up 0.2s ease-out;
 }
+
+/* NOC / SCADA operational map */
+.noc-shell {
+  position: relative;
+}
+.noc-shell::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 78% 10%,
+      color-mix(in oklab, var(--primary) 9%, transparent),
+      transparent 28rem
+    ),
+    linear-gradient(115deg, color-mix(in oklab, var(--primary) 4%, transparent), transparent 38%);
+}
+.noc-commandbar,
+.noc-panel,
+.noc-map-frame {
+  background: color-mix(in oklab, var(--card) 94%, #030813);
+  border: 1px solid color-mix(in oklab, var(--border) 88%, var(--primary));
+  box-shadow:
+    0 12px 32px oklch(0 0 0 / 0.18),
+    inset 0 1px 0 oklch(1 0 0 / 0.035);
+}
+.noc-commandbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 82px;
+  padding: 1rem 1.15rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--primary);
+}
+.noc-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  color: var(--muted-foreground);
+}
+.noc-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--risk-low);
+  box-shadow: 0 0 14px var(--risk-low);
+  animation: noc-breathe 1.7s ease-in-out infinite;
+}
+.noc-status-cluster {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.noc-status-box {
+  display: flex;
+  flex-direction: column;
+  min-width: 78px;
+  gap: 0.15rem;
+  padding: 0.42rem 0.55rem;
+  border: 1px solid var(--border);
+  background: oklch(0 0 0 / 0.15);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}
+.noc-status-box strong {
+  color: var(--foreground);
+  font-size: 11px;
+}
+.noc-panel {
+  border-radius: 7px;
+}
+.noc-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+.noc-quiet-button,
+.noc-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 72%, #000);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+.noc-quiet-button {
+  padding: 0.42rem 0.58rem;
+}
+.noc-icon-button {
+  width: 30px;
+  height: 30px;
+}
+.noc-quiet-button:hover:not(:disabled),
+.noc-icon-button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+.noc-quiet-button:disabled,
+.noc-icon-button:disabled,
+.noc-event-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.noc-event-button {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: center;
+  gap: 0.1rem 0.6rem;
+  min-height: 67px;
+  padding: 0.7rem 0.9rem;
+  background: color-mix(in oklab, var(--card) 85%, #03060c);
+  text-align: left;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+.noc-event-button svg {
+  grid-row: span 2;
+}
+.noc-event-button small {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.2;
+}
+.noc-event-button:hover:not(:disabled),
+.noc-event-button.is-active {
+  background: color-mix(in oklab, var(--card) 75%, var(--primary));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent);
+}
+.noc-event-cyan {
+  color: var(--primary);
+}
+.noc-event-orange {
+  color: var(--risk-high);
+}
+.noc-event-violet {
+  color: var(--purple-elec);
+}
+.noc-scenario-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: color-mix(in oklab, currentColor 8%, var(--card));
+  animation: noc-enter 0.28s ease-out;
+}
+.noc-scenario-banner p {
+  margin-top: 0.15rem;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.noc-map-frame {
+  position: relative;
+  overflow: hidden;
+  min-height: 570px;
+  border-radius: 8px;
+}
+.noc-map-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.45;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 11%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--primary) 11%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, black, transparent 90%);
+}
+.noc-map-topline,
+.noc-map-legend {
+  position: absolute;
+  z-index: 4;
+  right: 0.8rem;
+  left: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
+}
+.noc-map-topline {
+  top: 0.75rem;
+}
+.noc-map-legend {
+  bottom: 0.75rem;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  background: oklch(0 0 0 / 0.25);
+}
+.noc-map-canvas {
+  position: relative;
+  height: 510px;
+  overflow: hidden;
+}
+.noc-flow-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.noc-flow-base {
+  stroke: color-mix(in oklab, var(--primary) 23%, var(--border));
+  stroke-width: 0.34;
+}
+.noc-flow-pulse {
+  stroke: var(--primary);
+  stroke-width: 0.48;
+  stroke-linecap: round;
+  stroke-dasharray: 1.2 4.4;
+  animation: noc-flow 3.5s linear infinite;
+}
+.noc-zone-node {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  color: var(--node-color);
+  text-align: left;
+  transition:
+    transform 0.22s ease,
+    filter 0.22s ease;
+}
+.noc-zone-node:hover,
+.noc-zone-node.is-selected {
+  z-index: 3;
+  transform: translate(-50%, -50%) scale(1.08);
+  filter: brightness(1.18);
+}
+.noc-zone-core {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--card) 88%, currentColor);
+  box-shadow: 0 0 calc(17px * var(--node-intensity))
+    color-mix(in oklab, currentColor 52%, transparent);
+}
+.noc-zone-radar {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.25;
+  animation: noc-radar 2.5s ease-out infinite;
+}
+.noc-zone-label {
+  position: absolute;
+  left: 34px;
+  width: 115px;
+  padding: 0.32rem 0.42rem;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, currentColor);
+  background: oklch(0.13 0.01 250 / 0.92);
+  box-shadow: 0 6px 14px oklch(0 0 0 / 0.24);
+  white-space: nowrap;
+}
+.noc-zone-label strong {
+  display: block;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.2;
+}
+.noc-zone-label small {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.noc-zone-node:nth-of-type(n + 6) .noc-zone-label {
+  right: 34px;
+  left: auto;
+  text-align: right;
+}
+.noc-zone-alert {
+  position: absolute;
+  top: -15px;
+  right: -8px;
+  padding: 2px 4px;
+  border: 1px solid var(--risk-high);
+  background: var(--card);
+  color: var(--risk-high);
+  font: 700 8px var(--font-mono);
+  animation: noc-breathe 1.1s infinite;
+}
+.noc-map-compass {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 2.75rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+.noc-timeline-input {
+  width: 100%;
+  height: 4px;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--primary),
+    color-mix(in oklab, var(--primary) 20%, var(--border))
+  );
+  accent-color: var(--primary);
+}
+.noc-timeline-input::-webkit-slider-thumb {
+  width: 13px;
+  height: 13px;
+  appearance: none;
+  border: 2px solid var(--card);
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+}
+.noc-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+.noc-metric {
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  background: oklch(0 0 0 / 0.12);
+}
+.noc-metric span,
+.noc-metric small {
+  display: block;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.noc-metric strong {
+  display: block;
+  margin: 0.1rem 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--foreground);
+}
+.noc-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+.noc-detail-link:hover {
+  text-decoration: underline;
+}
+.noc-ai-rationale {
+  padding: 0.62rem;
+  border-left: 2px solid var(--purple-elec);
+  background: color-mix(in oklab, var(--purple-elec) 7%, transparent);
+}
+.noc-ai-rationale span {
+  font: 700 9px var(--font-mono);
+  color: var(--purple-elec);
+  letter-spacing: 0.1em;
+}
+.noc-ai-rationale p {
+  margin-top: 0.25rem;
+  color: var(--foreground);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.noc-ai-item {
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  background: oklch(0 0 0 / 0.11);
+}
+.noc-ai-item strong {
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.noc-ai-item p {
+  margin-top: 0.35rem;
+  color: var(--foreground);
+  font-size: 11px;
+  line-height: 1.42;
+}
+.noc-ai-item small {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.noc-urgency {
+  padding: 2px 4px;
+  font: 700 8px var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.noc-urgency.info {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+}
+.noc-urgency.atencao {
+  color: var(--risk-med);
+  background: color-mix(in oklab, var(--risk-med) 12%, transparent);
+}
+.noc-urgency.alto,
+.noc-urgency.critico {
+  color: var(--risk-high);
+  background: color-mix(in oklab, var(--risk-high) 12%, transparent);
+}
+@keyframes noc-flow {
+  to {
+    stroke-dashoffset: -11;
+  }
+}
+@keyframes noc-radar {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+@keyframes noc-breathe {
+  50% {
+    opacity: 0.48;
+  }
+}
+@keyframes noc-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 640px) {
+  .noc-commandbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .noc-map-frame {
+    min-height: 480px;
+  }
+  .noc-map-canvas {
+    height: 420px;
+  }
+  .noc-zone-label {
+    width: 95px;
+    white-space: normal;
+  }
+  .noc-zone-label strong {
+    font-size: 9px;
+  }
+  .noc-zone-label small {
+    font-size: 8px;
+  }
+  .noc-map-legend {
+    gap: 0.35rem;
+  }
+  .noc-map-topline {
+    font-size: 8px;
+  }
+}
