@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Zap, Map, LayoutDashboard, Brain } from "lucide-react";
+import { Zap, Map, LayoutDashboard, Brain, Presentation } from "lucide-react";
 import { StatusWebSocket } from "./StatusWebSocket";
 import { useCityGrid } from "@/lib/citygrid-context";
 import { formatarHorarioSimulado } from "@/lib/citygrid-api";
@@ -9,6 +9,7 @@ export function Header() {
   const { stats, status, timestampSimulado } = useCityGrid();
 
   const links = [
+    { to: "/apresentacao", label: "Projeto", icon: Presentation },
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
     { to: "/mapa", label: "Mapa", icon: Map },
     { to: "/decisoes", label: "Recomendações", icon: Brain },
