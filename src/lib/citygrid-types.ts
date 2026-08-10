@@ -2,6 +2,27 @@ export type Risco = "BAIXO" | "MÉDIO" | "ALTO" | "CRÍTICO";
 export type EstadoPrevisao = Risco | "AGUARDANDO" | "ERRO" | "DESCONHECIDO";
 export type BatModo = "CARREGANDO" | "STANDBY" | "DESCARGANDO";
 export type StatusConexao = "conectado" | "conectando" | "offline";
+export type TipoCenario = "tempestade" | "incendio" | "pico_consumo";
+
+export interface ImpactosCenario {
+  consumo_pct: number;
+  geracao_pct: number;
+  frequencia_delta_hz: number;
+  thd_delta_pct: number;
+  bateria_delta_pct: number;
+}
+
+export interface CenarioManual {
+  id: string;
+  tipo: TipoCenario;
+  nome: string;
+  descricao: string;
+  zonas_afetadas: string[];
+  ciclo_inicio: number;
+  ciclo_fim: number;
+  ciclos_restantes: number;
+  impactos: ImpactosCenario;
+}
 
 export interface Zona {
   zona_id: string;
@@ -65,7 +86,16 @@ export interface Stats {
   intervalo_simulado_minutos: number;
   ciclo: number;
   evento_ativo: string | null;
+  cenario_manual: CenarioManual | null;
   dados_sinteticos: boolean;
+}
+
+export interface SnapshotTelemetria {
+  ciclo: number;
+  timestamp: string | null;
+  zonas: Zona[];
+  stats: Stats;
+  recomendacoes: Recomendacao[];
 }
 
 export interface HistoricoPonto {

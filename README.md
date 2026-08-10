@@ -19,6 +19,10 @@ O CityGrid Brain é uma plataforma demonstrativa de apoio à decisão para redes
 - **Operação segura para demonstração:** as saídas são recomendações para revisão humana; o sistema não envia comandos a equipamentos.
 - **Qualidade contínua:** o GitHub Actions executa testes Python, testes frontend, typecheck, lint e build em cada PR e na branch `main`.
 
+## POC de LLM pequeno
+
+O diretório [`llm_decision/`](llm_decision/README.md) contém um POC reprodutível de um **Ministral 3B ajustado com QLoRA**. Ele converte telemetria sintética em JSON de apoio à decisão, sem substituir as heurísticas determinísticas, LSTM, XGBoost ou revisão humana. Inclui dataset sintético de 3.000 amostras, notebooks Kaggle/Colab, validação de artefatos, benchmark local com Ollama e modelo de publicação de adapter/GGUF.
+
 ## Arquitetura da demonstração
 
 O fluxo principal funciona sem Docker e sem internet:

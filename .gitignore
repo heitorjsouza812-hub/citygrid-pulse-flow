@@ -1,3 +1,8 @@
+# LLM training artifacts downloaded from cloud runtimes (large/local-only)
+/llm_decision/artifacts/incoming/
+/llm_decision/artifacts/ollama/*.gguf
+/llm_decision/artifacts/ollama/Modelfile
+
 # Python
 .venv/
 __pycache__/

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApresentacaoRouteImport } from './routes/apresentacao'
 import { Route as DecisoesRouteImport } from './routes/decisoes'
 import { Route as MapaRouteImport } from './routes/mapa'
 import { Route as ZonaIdRouteImport } from './routes/zona.$id'
@@ -17,6 +18,11 @@ import { Route as ZonaIdRouteImport } from './routes/zona.$id'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApresentacaoRoute = ApresentacaoRouteImport.update({
+  id: '/apresentacao',
+  path: '/apresentacao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DecisoesRoute = DecisoesRouteImport.update({
@@ -37,12 +43,14 @@ const ZonaIdRoute = ZonaIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/apresentacao': typeof ApresentacaoRoute
   '/decisoes': typeof DecisoesRoute
   '/mapa': typeof MapaRoute
   '/zona/$id': typeof ZonaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/apresentacao': typeof ApresentacaoRoute
   '/decisoes': typeof DecisoesRoute
   '/mapa': typeof MapaRoute
   '/zona/$id': typeof ZonaIdRoute
@@ -50,20 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/apresentacao': typeof ApresentacaoRoute
   '/decisoes': typeof DecisoesRoute
   '/mapa': typeof MapaRoute
   '/zona/$id': typeof ZonaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/decisoes' | '/mapa' | '/zona/$id'
+  fullPaths: '/' | '/apresentacao' | '/decisoes' | '/mapa' | '/zona/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/decisoes' | '/mapa' | '/zona/$id'
-  id: '__root__' | '/' | '/decisoes' | '/mapa' | '/zona/$id'
+  to: '/' | '/apresentacao' | '/decisoes' | '/mapa' | '/zona/$id'
+  id: '__root__' | '/' | '/apresentacao' | '/decisoes' | '/mapa' | '/zona/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApresentacaoRoute: typeof ApresentacaoRoute
   DecisoesRoute: typeof DecisoesRoute
   MapaRoute: typeof MapaRoute
   ZonaIdRoute: typeof ZonaIdRoute
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apresentacao': {
+      id: '/apresentacao'
+      path: '/apresentacao'
+      fullPath: '/apresentacao'
+      preLoaderRoute: typeof ApresentacaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/decisoes': {
@@ -104,6 +121,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApresentacaoRoute: ApresentacaoRoute,
   DecisoesRoute: DecisoesRoute,
   MapaRoute: MapaRoute,
   ZonaIdRoute: ZonaIdRoute,
