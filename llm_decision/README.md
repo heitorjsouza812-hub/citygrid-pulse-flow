@@ -11,6 +11,15 @@ O projeto já possui uma camada numérica apropriada para a rede simulada:
 
 O LLM pequeno não substitui essas camadas. Ele transforma telemetria sintética em uma decisão consultiva JSON, padroniza a justificativa e identifica dados ausentes/conflitos para revisão humana. Não controla equipamentos.
 
+## Fronteira operacional do LLM
+
+O POC deve permanecer fora do caminho crítico do simulador, Kafka e `MotorDecisao.processar_ciclo()`:
+
+1. O motor determinístico calcula primeiro as regras R0–R5, XGBoost, LSTM e o cenário genético.
+2. O LLM recebe somente um snapshot normalizado e somente leitura, incluindo telemetria validada e sinais já calculados.
+3. A consulta ocorre de forma assíncrona ou sob demanda no dashboard; uma indisponibilidade do LLM não pode atrasar uma recomendação determinística.
+4. A resposta é registrada separadamente, por exemplo em `logs/revisoes_llm.jsonl`, e exibida como “análise consultiva para revisão humana”. Ela não é uma nova origem de `Acao`, não altera setpoints e não publica em tópicos de operação.
+
 ## Modelo escolhido
 
 O pedido inicial era um Mistral de aproximadamente 4B. A consulta ao Hugging Face confirmou que os resultados Mistral 4B atuais eram `Voxtral` de áudio, não um LLM textual adequado a este experimento. Por isso o POC usa o checkpoint oficial textual pequeno:
