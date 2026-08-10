@@ -1,0 +1,31 @@
+{
+  "dataset": "CityGrid Brain decision-support SFT",
+  "schema_version": "citygrid-decision-v1",
+  "synthetic": true,
+  "seed": 42,
+  "total_rows": 3000,
+  "split_counts": {
+    "train": 2400,
+    "validation": 300,
+    "test": 300
+  },
+  "scenario_counts": {
+    "sinais_conflitantes": 150,
+    "qualidade_energia_thd": 280,
+    "monitorar_rotina": 600,
+    "acao_preventiva_lstm": 360,
+    "fator_potencia_baixo": 260,
+    "sobrecarga_nao_critica": 350,
+    "dados_insuficientes": 220,
+    "frequencia_fora_faixa": 320,
+    "proteger_zona_critica": 280,
+    "microfalta_ou_medicao": 180
+  },
+  "sha256": {
+    "citygrid_decision_3000.jsonl": "e08a8688f9f353d0b3bb364cdddb372fe83fc24b4422797f29d17f2de115b3f1",
+    "train.jsonl": "462067e3b7abd410d4dcb9f15603a21e7c63d072d459e741a23b3e3988973c47",
+    "validation.jsonl": "a6482f470b548c95d91aa3b6d8f6064a574f3d454e57673d569656368b3472fd",
+    "test.jsonl": "e5e4538314819f426dbd12c91c8a7d3d33fe6965b2cd566c0777826405dda26f"
+  },
+  "license_notice": "Synthetic demonstrative dataset; not for controlling real infrastructure."
+}
