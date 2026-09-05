@@ -39,6 +39,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from audience_api import AudienceHub, audience_websocket, build_audience_router, room_lifecycle
+from audience_rooms import RoomManager
+
 # ML
 import torch
 import torch.nn as nn
@@ -131,6 +134,30 @@ CENARIOS_MANUAIS: Dict[str, Dict[str, Any]] = {
     },
 }
 _cenario_manual: Optional[Dict[str, Any]] = None
+
+# Central de Decisão da Plateia: estado transitório e isolado da telemetria.
+# Para múltiplos workers, substitua RoomManager por uma implementação Redis.
+_public_app_url = os.getenv("CITYGRID_PUBLIC_APP_URL", "http://127.0.0.1:5173")
+_room_ttl = int(os.getenv("CITYGRID_ROOM_TTL_MINUTES", "120"))
+salas = RoomManager(CENARIOS_MANUAIS, _public_app_url, _room_ttl)
+
+
+def sinais_plateia_por_zona(zona_id: str) -> Dict[str, Any]:
+    """Read-only snapshot of existing model outputs for educational explanations.
+
+    Room rules remain usable before telemetry/model warm-up; absent values simply
+    omit the corresponding explanation rather than claiming a live inference.
+    """
+    zona = _cache.get("zonas", {}).get(zona_id, {})
+    return {
+        key: zona[key]
+        for key in ("risco_lstm", "previsao_mw", "risco_xgb", "confianca_xgb")
+        if zona.get(key) is not None
+    }
+
+
+salas.set_signal_provider(sinais_plateia_por_zona)
+salas_ws = AudienceHub()
 
 
 class EventoManualRequest(BaseModel):
@@ -435,15 +462,18 @@ async def atualizar_cache():
 async def lifespan(_: FastAPI):
     carregar_modelos()
     tarefa = asyncio.create_task(loop_atualizacao())
+    tarefa_salas = asyncio.create_task(room_lifecycle(salas, salas_ws))
     logger.info("CityGrid Backend iniciado — http://localhost:8000")
     try:
         yield
     finally:
-        tarefa.cancel()
-        try:
-            await tarefa
-        except asyncio.CancelledError:
-            pass
+        for tarefa_ativa in (tarefa, tarefa_salas):
+            tarefa_ativa.cancel()
+        for tarefa_ativa in (tarefa, tarefa_salas):
+            try:
+                await tarefa_ativa
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(
@@ -453,18 +483,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_cors_defaults = "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173"
+_cors_origins = [item.strip() for item in os.getenv("CITYGRID_CORS_ORIGINS", _cors_defaults).split(",") if item.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:4173",
-        "http://localhost:4173",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "X-Presenter-Token"],
 )
+app.include_router(build_audience_router(salas, salas_ws))
 
 # ── WebSocket Manager ──────────────────────────────────────────────
 
@@ -598,6 +626,12 @@ async def websocket_endpoint(ws: WebSocket):
     except Exception as e:
         logger.error(f"WS error: {e}")
         ws_manager.desconectar(ws)
+
+
+@app.websocket("/ws/salas/{codigo}")
+async def websocket_sala(ws: WebSocket, codigo: str):
+    """Channel isolated from global telemetry; clients cannot mutate a room here."""
+    await audience_websocket(ws, codigo, salas, salas_ws)
 
 
 @app.get("/")

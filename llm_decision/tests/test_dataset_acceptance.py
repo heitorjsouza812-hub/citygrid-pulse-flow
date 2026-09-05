@@ -36,7 +36,9 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 
 def _canonical_digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    # Dataset manifests are generated with LF. Normalize checkout line endings so
+    # the reproducibility assertion is identical on Windows and CI/Linux.
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def test_dataset_contract_and_exact_distributions() -> None:

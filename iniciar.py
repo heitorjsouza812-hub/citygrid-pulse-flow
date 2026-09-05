@@ -21,8 +21,14 @@ import webbrowser
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
-API_URL = "http://127.0.0.1:8000"
-DASHBOARD_URL = "http://127.0.0.1:5173"
+HOST = os.getenv("CITYGRID_HOST", "127.0.0.1")
+PORT = int(os.getenv("CITYGRID_PORT", "8000"))
+FRONTEND_HOST = os.getenv("CITYGRID_FRONTEND_HOST", HOST)
+FRONTEND_PORT = int(os.getenv("CITYGRID_FRONTEND_PORT", "5173"))
+# When binding all interfaces, probe through loopback but expose the configured LAN URL in docs/QR.
+PROBE_HOST = "127.0.0.1" if HOST == "0.0.0.0" else HOST
+API_URL = f"http://{PROBE_HOST}:{PORT}"
+DASHBOARD_URL = f"http://{PROBE_HOST}:{FRONTEND_PORT}"
 
 VERDE = "\033[92m"
 AMARELO = "\033[93m"
@@ -172,12 +178,12 @@ def main() -> int:
     )
     iniciar_processo(
         f"Backend FastAPI → {API_URL}",
-        [python, "-m", "uvicorn", "backend:app", "--host", "127.0.0.1", "--port", "8000"],
+        [python, "-m", "uvicorn", "backend:app", "--host", HOST, "--port", str(PORT)],
         esperar=1,
     )
     iniciar_processo(
         f"Frontend React → {DASHBOARD_URL}",
-        [npm, "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"],
+        [npm, "run", "dev", "--", "--host", FRONTEND_HOST, "--port", str(FRONTEND_PORT)],
     )
 
     api_ok = aguardar_url(f"{API_URL}/api/stats", timeout=35)
