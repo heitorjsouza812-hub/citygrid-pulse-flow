@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApresentacaoRouteImport } from './routes/apresentacao'
+import { Route as ApresentadorRouteImport } from './routes/apresentador'
 import { Route as DecisoesRouteImport } from './routes/decisoes'
 import { Route as MapaRouteImport } from './routes/mapa'
+import { Route as ParticiparCodigoRouteImport } from './routes/participar.$codigo'
 import { Route as ZonaIdRouteImport } from './routes/zona.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -25,6 +27,11 @@ const ApresentacaoRoute = ApresentacaoRouteImport.update({
   path: '/apresentacao',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApresentadorRoute = ApresentadorRouteImport.update({
+  id: '/apresentador',
+  path: '/apresentador',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DecisoesRoute = DecisoesRouteImport.update({
   id: '/decisoes',
   path: '/decisoes',
@@ -33,6 +40,11 @@ const DecisoesRoute = DecisoesRouteImport.update({
 const MapaRoute = MapaRouteImport.update({
   id: '/mapa',
   path: '/mapa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParticiparCodigoRoute = ParticiparCodigoRouteImport.update({
+  id: '/participar/$codigo',
+  path: '/participar/$codigo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ZonaIdRoute = ZonaIdRouteImport.update({
@@ -44,38 +56,68 @@ const ZonaIdRoute = ZonaIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/apresentacao': typeof ApresentacaoRoute
+  '/apresentador': typeof ApresentadorRoute
   '/decisoes': typeof DecisoesRoute
   '/mapa': typeof MapaRoute
+  '/participar/$codigo': typeof ParticiparCodigoRoute
   '/zona/$id': typeof ZonaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/apresentacao': typeof ApresentacaoRoute
+  '/apresentador': typeof ApresentadorRoute
   '/decisoes': typeof DecisoesRoute
   '/mapa': typeof MapaRoute
+  '/participar/$codigo': typeof ParticiparCodigoRoute
   '/zona/$id': typeof ZonaIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/apresentacao': typeof ApresentacaoRoute
+  '/apresentador': typeof ApresentadorRoute
   '/decisoes': typeof DecisoesRoute
   '/mapa': typeof MapaRoute
+  '/participar/$codigo': typeof ParticiparCodigoRoute
   '/zona/$id': typeof ZonaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/apresentacao' | '/decisoes' | '/mapa' | '/zona/$id'
+  fullPaths:
+    | '/'
+    | '/apresentacao'
+    | '/apresentador'
+    | '/decisoes'
+    | '/mapa'
+    | '/participar/$codigo'
+    | '/zona/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/apresentacao' | '/decisoes' | '/mapa' | '/zona/$id'
-  id: '__root__' | '/' | '/apresentacao' | '/decisoes' | '/mapa' | '/zona/$id'
+  to:
+    | '/'
+    | '/apresentacao'
+    | '/apresentador'
+    | '/decisoes'
+    | '/mapa'
+    | '/participar/$codigo'
+    | '/zona/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/apresentacao'
+    | '/apresentador'
+    | '/decisoes'
+    | '/mapa'
+    | '/participar/$codigo'
+    | '/zona/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApresentacaoRoute: typeof ApresentacaoRoute
+  ApresentadorRoute: typeof ApresentadorRoute
   DecisoesRoute: typeof DecisoesRoute
   MapaRoute: typeof MapaRoute
+  ParticiparCodigoRoute: typeof ParticiparCodigoRoute
   ZonaIdRoute: typeof ZonaIdRoute
 }
 
@@ -95,6 +137,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApresentacaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/apresentador': {
+      id: '/apresentador'
+      path: '/apresentador'
+      fullPath: '/apresentador'
+      preLoaderRoute: typeof ApresentadorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/decisoes': {
       id: '/decisoes'
       path: '/decisoes'
@@ -107,6 +156,13 @@ declare module '@tanstack/react-router' {
       path: '/mapa'
       fullPath: '/mapa'
       preLoaderRoute: typeof MapaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/participar/$codigo': {
+      id: '/participar/$codigo'
+      path: '/participar/$codigo'
+      fullPath: '/participar/$codigo'
+      preLoaderRoute: typeof ParticiparCodigoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/zona/$id': {
@@ -122,8 +178,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApresentacaoRoute: ApresentacaoRoute,
+  ApresentadorRoute: ApresentadorRoute,
   DecisoesRoute: DecisoesRoute,
   MapaRoute: MapaRoute,
+  ParticiparCodigoRoute: ParticiparCodigoRoute,
   ZonaIdRoute: ZonaIdRoute,
 }
 export const routeTree = rootRouteImport

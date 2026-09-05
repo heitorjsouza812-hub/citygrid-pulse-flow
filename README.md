@@ -215,3 +215,54 @@ grafana/provisioning/          datasource e dashboard opcionais
 O CityGrid Brain deve ser apresentado como:
 
 > **Uma plataforma de apoio à decisão para uma rede urbana simulada, com previsão de consumo validada contra baseline, governança de modelos e recomendações explicáveis.**
+
+## Central de Decisão da Plateia
+
+A Central de Decisão da Plateia transforma a demonstração em uma experiência coletiva para apresentações, feiras e salas de aula. Ela não substitui o dashboard: o modo operacional, mapa, timeline, cenários manuais, histórico e recomendações existentes continuam disponíveis.
+
+- Apresentador: abra `/apresentador`, crie uma sala e projete o QR Code.
+- Participante: leia o QR Code (ou abra `/participar/CG-0000`), informe um apelido opcional e vote sem conta.
+- O apresentador é o único ator que cria sala, inicia eventos, abre/fecha/revela votos, aplica projeções, decide empates e encerra a apresentação.
+- Cada sala tem código público curto e token privado de apresentador. O token fica apenas no `sessionStorage` do navegador do apresentador e nunca é colocado no QR/link/estado público.
+
+### Fluxo de três rodadas
+
+1. Crie a sala; o lobby mostra QR, link, código e presença conectada.
+2. Escolha um evento já existente: tempestade severa, incêndio urbano ou pico de consumo.
+3. Abra a votação de zona e depois a votação de ação. Cada participante tem um voto por etapa e pode alterá-lo enquanto o servidor mantém a votação aberta.
+4. Feche, resolva qualquer empate explicitamente, revele **Plateia × Recomendação do sistema** e aplique a projeção educacional.
+5. Após três rodadas, encerre para obter o resumo final, total de votos, participantes, comparações com a recomendação e melhor/rodada de maior atenção.
+
+O padrão é **resultado oculto** durante a votação. O apresentador pode ativar resultado ao vivo e escolher 10, 15, 20, 30 segundos ou sem limite. O prazo é decidido pelo backend, não pelo relógio do celular.
+
+### Arquitetura e regras da sala
+
+```text
+/apresentador e /participar/$codigo
+  ├─ REST /api/salas/* (ações administrativas exigem X-Presenter-Token)
+  └─ WS /ws/salas/{codigo} (estado e presença em tempo real)
+       └─ RoomManager em memória → regras, votos, cronômetro e projeções
+```
+
+O backend é a única fonte de verdade. As mensagens WS são tipadas (`sala_atualizada`, `participante_entrou`, `rodada_iniciada`, `votacao_aberta`, `voto_registrado`, `contagem_atualizada`, `votacao_encerrada`, `resultado_revelado`, `consequencia_aplicada`, `apresentacao_encerrada` e `erro`). Desconectar e reconectar não remove o voto: o cliente usa um identificador anônimo persistido por sala no `localStorage`.
+
+O placar começa em estabilidade 75, reserva 70, controle de custos 70 e satisfação 75. Cada ação tem deltas específicos por evento no único mapa de regras `audience_rooms.py`; todos os valores são limitados a 0–100. A pontuação geral é `0,40×estabilidade + 0,25×reserva + 0,15×controle_custos + 0,20×satisfação`. As consequências são projeções guardadas somente na sala, identificadas visualmente como **PROJEÇÃO DE CENÁRIO**; elas nunca escrevem JSONL, histórico ou modelos.
+
+A recomendação compara heurísticas explicáveis, prioridade do cenário e contexto LSTM. O XGBoost permanece sinal analítico enquanto seu gate permanece fechado; seu score bruto não é probabilidade calibrada. O POC Ministral é experimental e não é consultado ao vivo por essa funcionalidade.
+
+### Uso em Wi-Fi e publicação
+
+1. Copie `.env.example` para `.env` e defina `CITYGRID_PUBLIC_APP_URL` como um endereço realmente alcançável pelos celulares, por exemplo `http://192.168.1.25:5173` na mesma rede.
+2. Para escutar na LAN, use `CITYGRID_HOST=0.0.0.0` e `CITYGRID_FRONTEND_HOST=0.0.0.0`; adicione explicitamente `http://IP-DO-PC:5173` a `CITYGRID_CORS_ORIGINS`.
+3. Inicie `python iniciar.py --sem-navegador` e abra `/apresentador` no computador. Em ambiente publicado, use URLs HTTPS/WSS, preencha `VITE_CITYGRID_API_URL` e `VITE_CITYGRID_WS_URL` se API e frontend forem domínios distintos, e mantenha uma lista exata de origens CORS.
+
+Nunca use `*` em CORS de produção. O QR é produzido com `CITYGRID_PUBLIC_APP_URL` no backend; configure-o antes de criar uma sala.
+
+### Limitações e solução de problemas
+
+- Salas são em memória e expiram após `CITYGRID_ROOM_TTL_MINUTES` de inatividade. Execute FastAPI com **um único worker**. Para múltiplos workers/replicas, implemente uma store Redis compartilhada e um pub/sub de WebSocket.
+- Backend indisponível, sala ausente/encerrada, votação fora da fase/prazo e token de apresentador inválido devolvem mensagens de erro explícitas. O cliente tenta reconexão com backoff.
+- Se um celular não abrir o QR, confirme o mesmo Wi-Fi, firewall/porta, URL pública correta e CORS com a origem exata. `127.0.0.1` no celular aponta para o próprio celular, nunca para o computador.
+- Se ninguém votar, não há escolha automática. Se houver empate, o apresentador deve escolher uma das opções empatadas.
+
+Todos os dados são sintéticos; esta é uma simulação educacional. Nenhuma ação é enviada a rede elétrica real, nenhuma decisão é certa com certeza e recomendações requerem avaliação humana.

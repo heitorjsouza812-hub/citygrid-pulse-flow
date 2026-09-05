@@ -7,11 +7,13 @@ import { formatarHorarioSimulado } from "@/lib/citygrid-api";
 export function Header() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { stats, status, timestampSimulado } = useCityGrid();
+  if (pathname.startsWith("/participar/")) return null;
 
   const links = [
     { to: "/apresentacao", label: "Projeto", icon: Presentation },
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
     { to: "/mapa", label: "Mapa", icon: Map },
+    { to: "/apresentador", label: "Plateia", icon: Presentation },
     { to: "/decisoes", label: "Recomendações", icon: Brain },
   ] as const;
 
