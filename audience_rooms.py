@@ -70,6 +70,12 @@ RECOMMENDED = {
     "incendio": ("zona_hospitalar", "priorizar_essenciais"),
     "pico_consumo": ("zona_centro", "reduzir_nao_essenciais"),
 }
+POINTS_PER_COMPLETED_ROUND = 50
+MAX_ALIGNMENT_BONUS = 25
+MAX_PARTICIPATION_BONUS = 25
+GAME_POINT_TARGET = 3 * (
+    POINTS_PER_COMPLETED_ROUND + MAX_ALIGNMENT_BONUS + MAX_PARTICIPATION_BONUS
+)
 
 
 def utcnow() -> datetime:
@@ -116,6 +122,10 @@ class Room:
     consequence: dict[str, Any] | None = None
     history: list[dict[str, Any]] = field(default_factory=list)
     rate_limit: dict[str, datetime] = field(default_factory=dict)
+    game_points: int = 0
+    alignment_bonus_total: int = 0
+    participation_bonus_total: int = 0
+    round_feedback: dict[str, Any] | None = None
 
 
 class RoomManager:
@@ -204,7 +214,7 @@ class RoomManager:
             raise ValidationError("Duração inválida")
         room.round_number += 1; room.event_type = event_type; room.phase = "EVENTO"; room.duration_seconds = duration
         if reveal_live is not None: room.reveal_live = reveal_live
-        room.vote_ends_at = None; room.voting_locked = False; room.winners = {}; room.ties = {}; room.recommendation = None; room.consequence = None; room.before_scoreboard = dict(room.scoreboard)
+        room.vote_ends_at = None; room.voting_locked = False; room.votes = {}; room.winners = {}; room.ties = {}; room.recommendation = None; room.consequence = None; room.before_scoreboard = dict(room.scoreboard); room.round_feedback = None
         self._touch(room); return self.public_state(code)
 
     def _open(self, room: Room, phase: Phase) -> None:
@@ -316,7 +326,40 @@ class RoomManager:
         event = self._event(room); targeted = room.winners.get("zona")
         room.consequence = {"projecao": True, "resumo": f"Resultado da simulação educacional: {ACTIONS[room.event_type][[a['id'] for a in ACTIONS[room.event_type]].index(room.winners['acao'])]['label']} aplicada em {ZONE_LABELS.get(targeted, targeted)}.", "zonas_afetadas": event["zonas_afetadas"], "zona_priorizada": targeted, "acao": room.winners["acao"], "deltas": dict(zip(keys, deltas)), "telemetria": {"carga_delta_pct": -8 if room.winners["acao"] in ("reduzir_nao_essenciais", "isolar_zona") else -3, "bateria_delta_pct": -12 if room.winners["acao"] == "usar_baterias" else 0, "frequencia_delta_hz": 0.08 if deltas[0] > 0 else -0.08, "thd_delta_pct": -1.2 if deltas[0] > 0 else 1.8}, "alertas": ["PROJEÇÃO DE CENÁRIO", "Dados sintéticos; nenhuma ação enviada à rede real."]}
         round_score = score - self.city_score(room.before_scoreboard or room.scoreboard)
-        room.history.append({"rodada": room.round_number, "evento": room.event_type, "zona": room.winners.get("zona"), "acao": room.winners.get("acao"), "pontuacao": score, "ganho_rodada": round(round_score, 1), "semelhante_ia": bool(room.recommendation and room.recommendation["semelhante"]), "risco": abs(min(deltas))})
+        zone_voters = {participant for participant, stage in room.votes if stage == "zona"}
+        action_voters = {participant for participant, stage in room.votes if stage == "acao"}
+        complete_participants = len(zone_voters & action_voters)
+        eligible_participants = len(room.participants)
+        participation_ratio = (
+            complete_participants / eligible_participants if eligible_participants else 0
+        )
+        participation_bonus = int(MAX_PARTICIPATION_BONUS * participation_ratio + 0.5)
+        aligned = bool(room.recommendation and room.recommendation["semelhante"])
+        alignment_bonus = MAX_ALIGNMENT_BONUS if aligned else 0
+        round_points = POINTS_PER_COMPLETED_ROUND + alignment_bonus + participation_bonus
+        room.game_points += round_points
+        room.alignment_bonus_total += alignment_bonus
+        room.participation_bonus_total += participation_bonus
+        if aligned and participation_ratio == 1:
+            feedback_message = "Missão concluída com alinhamento e participação total."
+        elif aligned:
+            feedback_message = "Missão alinhada; mais participação aumenta o bônus coletivo."
+        else:
+            feedback_message = "Missão concluída; compare a escolha com a recomendação documentada."
+        room.round_feedback = {
+            "rodada": room.round_number,
+            "pontos_base": POINTS_PER_COMPLETED_ROUND,
+            "bonus_alinhamento": alignment_bonus,
+            "bonus_participacao": participation_bonus,
+            "pontos_rodada": round_points,
+            "pontos_total": room.game_points,
+            "participacao_pct": round(participation_ratio * 100, 1),
+            "participantes_completos": complete_participants,
+            "participantes_elegiveis": eligible_participants,
+            "alinhada_recomendacao": aligned,
+            "mensagem": feedback_message,
+        }
+        room.history.append({"rodada": room.round_number, "evento": room.event_type, "zona": room.winners.get("zona"), "acao": room.winners.get("acao"), "pontuacao": score, "ganho_rodada": round(round_score, 1), "semelhante_ia": aligned, "risco": abs(min(deltas)), "pontos_jogo": round_points, "bonus_alinhamento": alignment_bonus, "bonus_participacao": participation_bonus, "participacao_pct": round(participation_ratio * 100, 1), "votos_rodada": len(room.votes)})
         room.phase = "CONSEQUENCIA"; self._touch(room); return self.public_state(code)
 
     @staticmethod
@@ -345,13 +388,25 @@ class RoomManager:
         if len(room.history) < 3: return None
         best = max(room.history, key=lambda item: item["ganho_rodada"]); risky = max(room.history, key=lambda item: item["risco"])
         alike = sum(1 for item in room.history if item["semelhante_ia"])
-        return {"rodadas": len(room.history), "pontuacao_final": self.city_score(room.scoreboard), "participantes": len(room.participants), "total_votos": len(room.votes), "semelhantes_ia": alike, "diferentes_ia": len(room.history) - alike, "melhor_rodada": best["rodada"], "rodada_mais_arriscada": risky["rodada"], "mensagem": f"A cidade terminou com {self.city_score(room.scoreboard):.0f}% de desempenho geral. Em {alike} das {len(room.history)} rodadas, a decisão da plateia foi semelhante à recomendação do CityGrid Brain."}
+        return {"rodadas": len(room.history), "pontuacao_final": self.city_score(room.scoreboard), "pontos_jogo": room.game_points, "meta_pontos": GAME_POINT_TARGET, "bonus_alinhamento_total": room.alignment_bonus_total, "bonus_participacao_total": room.participation_bonus_total, "participantes": len(room.participants), "total_votos": sum(item["votos_rodada"] for item in room.history), "semelhantes_ia": alike, "diferentes_ia": len(room.history) - alike, "melhor_rodada": best["rodada"], "rodada_mais_arriscada": risky["rodada"], "mensagem": f"A cidade terminou com {self.city_score(room.scoreboard):.0f}% de desempenho geral. Em {alike} das {len(room.history)} rodadas, a decisão da plateia foi semelhante à recomendação do CityGrid Brain."}
+
+    def _progress(self, room: Room) -> dict[str, Any]:
+        return {
+            "pontos_total": room.game_points,
+            "meta_pontos": GAME_POINT_TARGET,
+            "progresso_pct": round(min(100, room.game_points / GAME_POINT_TARGET * 100), 1),
+            "rodadas_concluidas": len(room.history),
+            "total_rodadas": 3,
+            "bonus_alinhamento_total": room.alignment_bonus_total,
+            "bonus_participacao_total": room.participation_bonus_total,
+            "feedback_rodada": room.round_feedback,
+        }
 
     def public_state(self, code: str) -> dict[str, Any]:
         room = self._room(code); event = self._event(room); stage = "zona" if room.phase == "VOTACAO_ZONA" else "acao" if room.phase == "VOTACAO_ACAO" else None
         zone_options = [{"id": z, "label": ZONE_LABELS.get(z, z)} for z in event.get("zonas_afetadas", [])]
         action_options = ACTIONS.get(room.event_type or "", [])
-        return {"id": room.code, "codigo": room.code, "fase": room.phase, "rodada": room.round_number, "criada_em": iso(room.created_at), "ultima_atividade": iso(room.last_activity), "participantes": len(room.participants), "conectados": len(room.connections), "evento": {"tipo": room.event_type, "nome": event.get("nome"), "descricao": event.get("descricao"), "zonas_afetadas": event.get("zonas_afetadas", [])} if room.event_type else None, "resultado_ao_vivo": room.reveal_live, "duracao_segundos": room.duration_seconds, "votacao_termina_em": iso(room.vote_ends_at), "votacao_bloqueada": room.voting_locked, "opcoes_zona": zone_options, "opcoes_acao": action_options, "contagens": {"zona": self._counts(room, "zona"), "acao": self._counts(room, "acao")}, "vencedores": dict(room.winners), "empate": {"etapa": stage, "opcoes": room.ties.get(stage, []) if stage else []}, "placar": {**room.scoreboard, "pontuacao_geral": self.city_score(room.scoreboard)}, "placar_antes": room.before_scoreboard, "recomendacao": room.recommendation, "consequencia": room.consequence, "historico": room.history, "resumo_final": self._summary(room), "dados_sinteticos": True}
+        return {"id": room.code, "codigo": room.code, "fase": room.phase, "rodada": room.round_number, "criada_em": iso(room.created_at), "ultima_atividade": iso(room.last_activity), "participantes": len(room.participants), "conectados": len(room.connections), "evento": {"tipo": room.event_type, "nome": event.get("nome"), "descricao": event.get("descricao"), "zonas_afetadas": event.get("zonas_afetadas", [])} if room.event_type else None, "resultado_ao_vivo": room.reveal_live, "duracao_segundos": room.duration_seconds, "votacao_termina_em": iso(room.vote_ends_at), "votacao_bloqueada": room.voting_locked, "opcoes_zona": zone_options, "opcoes_acao": action_options, "contagens": {"zona": self._counts(room, "zona"), "acao": self._counts(room, "acao")}, "vencedores": dict(room.winners), "empate": {"etapa": stage, "opcoes": room.ties.get(stage, []) if stage else []}, "placar": {**room.scoreboard, "pontuacao_geral": self.city_score(room.scoreboard)}, "placar_antes": room.before_scoreboard, "recomendacao": room.recommendation, "consequencia": room.consequence, "progressao": self._progress(room), "historico": room.history, "resumo_final": self._summary(room), "dados_sinteticos": True}
 
     def message(self, code: str, message_type: str) -> dict[str, Any]:
         return {"tipo": message_type, "sala": self.public_state(code), "enviado_em": iso(utcnow())}

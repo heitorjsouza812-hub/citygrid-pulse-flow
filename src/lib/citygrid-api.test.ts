@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatarHorarioSimulado,
+  normalizarAtualizacao,
   normalizarRecomendacao,
   normalizarStats,
   normalizarZona,
@@ -73,6 +74,63 @@ describe("normalizarRecomendacao", () => {
     expect(recomendacao.urgencia).toBe("alto");
     expect(recomendacao.score).toBeNull();
     expect(recomendacao.descricao).toBe("Preparar resposta");
+  });
+
+  it("preserva a origem Mistral 3B de um registro experimental explícito", () => {
+    const recomendacao = normalizarRecomendacao(
+      {
+        timestamp: "2026-01-01T12:05:00",
+        zona_alvo: "zona_sul",
+        tipo: "POC_EXPERIMENTAL",
+        origem: "mistral3b",
+        descricao: "Registro sintético da POC, sem inferência ao vivo",
+      },
+      new Map([["zona_sul", "Zona Sul"]]),
+      0,
+    );
+
+    expect(recomendacao.origem).toBe("mistral3b");
+  });
+
+  it("mantém IDs distintos para recomendações iguais sem id da API", () => {
+    const raw = {
+      timestamp: "2026-01-01T12:10:00",
+      zona_alvo: "zona_sul",
+      tipo: "ACAO_PREVENTIVA",
+      origem: "lstm",
+      descricao: "Preparar resposta",
+    };
+    const nomes = new Map([["zona_sul", "Zona Sul"]]);
+
+    expect(normalizarRecomendacao(raw, nomes, 0).id).not.toBe(
+      normalizarRecomendacao(raw, nomes, 1).id,
+    );
+  });
+});
+
+describe("normalizarAtualizacao", () => {
+  it("mantém o fallback de ID estável quando a janela de alertas muda de posição", () => {
+    const alvo = {
+      timestamp: "2026-01-01T12:10:00",
+      zona_alvo: "zona_sul",
+      tipo: "ACAO_PREVENTIVA",
+      origem: "lstm",
+      descricao: "Preparar resposta",
+    };
+    const anterior = normalizarAtualizacao({
+      ciclo: 1,
+      zonas: [],
+      stats: {},
+      recomendacoes: [{ ...alvo, timestamp: "2026-01-01T12:05:00" }, alvo],
+    });
+    const atual = normalizarAtualizacao({
+      ciclo: 2,
+      zonas: [],
+      stats: {},
+      recomendacoes: [alvo],
+    });
+
+    expect(anterior.recomendacoes[1].id).toBe(atual.recomendacoes[0].id);
   });
 });
 

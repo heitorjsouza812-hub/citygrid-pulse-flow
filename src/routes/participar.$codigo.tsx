@@ -8,6 +8,7 @@ import {
   ResumoFinal,
 } from "@/components/audiencia/ResultadoSala";
 import { PlacarCidade } from "@/components/audiencia/PlacarCidade";
+import { ProgressoJogo } from "@/components/audiencia/ProgressoJogo";
 import { audienceApi } from "@/lib/audience-api";
 import { participantIdFor, useSala } from "@/lib/use-sala";
 
@@ -91,6 +92,7 @@ function Participar() {
         <span className={`audience-connection ${status}`}>{status}</span>
       </header>
       <PlacarCidade placar={sala.placar} compacto />
+      <ProgressoJogo progressao={sala.progressao} />
       {sala.fase === "LOBBY" && (
         <section className="audience-wait audience-ready">
           <span className="audience-ready-orb" aria-hidden="true">

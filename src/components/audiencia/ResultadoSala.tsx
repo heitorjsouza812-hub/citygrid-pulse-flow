@@ -35,12 +35,15 @@ export function ComparacaoPlateiaIA({ sala }: { sala: SalaPlateia }) {
           {readable(sala.vencedores.zona)} · {readable(sala.vencedores.acao)}
         </span>
         <span>
-          <b>CityGrid</b>
+          <b>Recomendação documentada</b>
           {readable(r.zona)} · {readable(r.acao)}
         </span>
       </div>
       <b className={r.semelhante ? "ok" : "warn"}>{r.classificacao}</b>
-      <small>O sistema é uma referência para a conversa, não um comando.</small>
+      <small>
+        Referência sintética para a conversa, baseada nas regras documentadas; não é um comando nem
+        uma inferência ao vivo.
+      </small>
     </section>
   );
 }
@@ -122,16 +125,24 @@ export function ResumoFinal({ sala }: { sala: SalaPlateia }) {
   if (!r) return null;
   return (
     <section className="audience-final">
-      <p>JOGO CONCLUÍDO</p>
-      <h1>{r.pontuacao_final.toFixed(0)}%</h1>
+      <p>PONTOS DO JOGO</p>
+      <h1 className="audience-game-points">
+        {r.pontos_jogo} / {r.meta_pontos}
+      </h1>
+      <b>{r.pontuacao_final.toFixed(0)}% de desempenho projetado da cidade</b>
       <strong>
         Vocês enfrentaram {r.rodadas} missões e deram {r.total_votos} respostas para a cidade.
       </strong>
       <div>
         <span>{r.participantes} jogadores</span>
+        <span>+{r.bonus_alinhamento_total} alinhamento</span>
+        <span>+{r.bonus_participacao_total} participação</span>
         <span>melhor rodada: {r.melhor_rodada}</span>
         <span>desafio maior: {r.rodada_mais_arriscada}</span>
       </div>
+      <small>
+        Resultado de uma projeção sintética educacional; não representa uma rede ao vivo.
+      </small>
     </section>
   );
 }

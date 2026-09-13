@@ -178,7 +178,9 @@ function urgencia(valor: unknown): Recomendacao["urgencia"] {
 }
 
 function origem(valor: unknown): Recomendacao["origem"] {
-  return valor === "xgboost" || valor === "lstm" || valor === "genetico" ? valor : "heuristica";
+  return valor === "xgboost" || valor === "lstm" || valor === "genetico" || valor === "mistral3b"
+    ? valor
+    : "heuristica";
 }
 
 export function normalizarRecomendacao(
@@ -192,7 +194,10 @@ export function normalizarRecomendacao(
   const tipo = texto(raw.tipo, "RECOMENDACAO");
   const score = raw.confianca == null ? null : numero(raw.confianca);
   return {
-    id: `${ts}-${zonaId}-${tipo}-${indice}`,
+    id: texto(
+      raw.id,
+      `${ts}-${zonaId}-${tipo}-${origem(raw.origem)}-${texto(raw.descricao)}-${indice}`,
+    ),
     ts,
     zona_id: zonaId,
     zona_nome: nomesZonas.get(zonaId) ?? (zonaId === "TODAS" ? "Todas as zonas" : zonaId),
@@ -203,6 +208,27 @@ export function normalizarRecomendacao(
     explicacao: texto(raw.explicacao),
     score,
   };
+}
+
+function normalizarRecomendacoes(valor: unknown, nomesZonas: Map<string, string>): Recomendacao[] {
+  if (!Array.isArray(valor)) return [];
+  const ocorrencias = new Map<string, number>();
+
+  return valor.map((item) => {
+    const raw = registro(item);
+    const chave =
+      texto(raw.id) ||
+      [
+        texto(raw.timestamp ?? raw.ts),
+        texto(raw.zona_alvo ?? raw.zona_id, "TODAS"),
+        texto(raw.tipo, "RECOMENDACAO"),
+        origem(raw.origem),
+        texto(raw.descricao),
+      ].join("\u0000");
+    const ocorrencia = ocorrencias.get(chave) ?? 0;
+    ocorrencias.set(chave, ocorrencia + 1);
+    return normalizarRecomendacao(item, nomesZonas, ocorrencia);
+  });
 }
 
 export function normalizarHistorico(valor: unknown): HistoricoPonto[] {
@@ -239,9 +265,7 @@ export async function buscarEstadoInicial(): Promise<{
   ]);
   const zonas = Array.isArray(zonasRaw) ? zonasRaw.map(normalizarZona) : [];
   const nomes = new Map(zonas.map((zona) => [zona.zona_id, zona.zona_nome]));
-  const recomendacoes = Array.isArray(recomendacoesRaw)
-    ? recomendacoesRaw.map((item, indice) => normalizarRecomendacao(item, nomes, indice))
-    : [];
+  const recomendacoes = normalizarRecomendacoes(recomendacoesRaw, nomes);
   const ciclo = Math.max(0, ...zonas.map((zona) => zona.ciclo));
   return { zonas, stats: normalizarStats(statsRaw, ciclo), recomendacoes };
 }
@@ -290,9 +314,7 @@ export function normalizarAtualizacao(valor: unknown): {
   const zonas = Array.isArray(raw.zonas) ? raw.zonas.map(normalizarZona) : [];
   const nomes = new Map(zonas.map((zona) => [zona.zona_id, zona.zona_nome]));
   const ciclo = numero(raw.ciclo);
-  const recomendacoes = Array.isArray(raw.recomendacoes)
-    ? raw.recomendacoes.map((item, indice) => normalizarRecomendacao(item, nomes, indice))
-    : [];
+  const recomendacoes = normalizarRecomendacoes(raw.recomendacoes, nomes);
   return {
     zonas,
     stats: normalizarStats(raw.stats, ciclo),

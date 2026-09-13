@@ -3,6 +3,7 @@ export type EstadoPrevisao = Risco | "AGUARDANDO" | "ERRO" | "DESCONHECIDO";
 export type BatModo = "CARREGANDO" | "STANDBY" | "DESCARGANDO";
 export type StatusConexao = "conectado" | "conectando" | "offline";
 export type TipoCenario = "tempestade" | "incendio" | "pico_consumo";
+export type OrigemRecomendacao = "heuristica" | "xgboost" | "lstm" | "genetico" | "mistral3b";
 
 export interface ImpactosCenario {
   consumo_pct: number;
@@ -68,7 +69,7 @@ export interface Recomendacao {
   zona_nome: string;
   tipo: string;
   urgencia: "info" | "atencao" | "alto" | "critico";
-  origem: "heuristica" | "xgboost" | "lstm" | "genetico";
+  origem: OrigemRecomendacao;
   descricao: string;
   explicacao: string;
   score: number | null;

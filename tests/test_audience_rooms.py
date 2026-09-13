@@ -158,3 +158,56 @@ def test_snapshot_message_is_typed_and_never_contains_token() -> None:
     assert payload["tipo"] == "sala_atualizada"
     assert payload["sala"]["codigo"] == created["codigo"]
     assert "presenter_token" not in payload["sala"]
+
+
+def test_server_scores_alignment_and_two_stage_participation_with_round_feedback() -> None:
+    rooms = manager()
+    created = rooms.create_room()
+    code, token = created["codigo"], created["presenter_token"]
+    for participant in ("participant-one", "participant-two"):
+        rooms.join(code, participant, participant)
+
+    initial = rooms.public_state(code)["progressao"]
+    assert initial == {
+        "pontos_total": 0,
+        "meta_pontos": 300,
+        "progresso_pct": 0.0,
+        "rodadas_concluidas": 0,
+        "total_rodadas": 3,
+        "bonus_alinhamento_total": 0,
+        "bonus_participacao_total": 0,
+        "feedback_rodada": None,
+    }
+
+    rooms.start_round(code, token, "tempestade", None)
+    rooms.open_zone_vote(code, token)
+    for participant in ("participant-one", "participant-two"):
+        rooms.cast_vote(code, participant, "zona", "zona_norte")
+    rooms.close_vote(code, token)
+    rooms.open_action_vote(code, token)
+    for participant in ("participant-one", "participant-two"):
+        rooms.cast_vote(code, participant, "acao", "usar_baterias")
+    rooms.close_vote(code, token)
+    rooms.reveal(code, token)
+    first = rooms.apply(code, token)
+
+    assert first["progressao"]["pontos_total"] == 100
+    assert first["progressao"]["progresso_pct"] == pytest.approx(33.3)
+    assert first["progressao"]["feedback_rodada"] == {
+        "rodada": 1,
+        "pontos_base": 50,
+        "bonus_alinhamento": 25,
+        "bonus_participacao": 25,
+        "pontos_rodada": 100,
+        "pontos_total": 100,
+        "participacao_pct": 100.0,
+        "participantes_completos": 2,
+        "participantes_elegiveis": 2,
+        "alinhada_recomendacao": True,
+        "mensagem": "Missão concluída com alinhamento e participação total.",
+    }
+    assert first["historico"][0]["pontos_jogo"] == 100
+
+    rooms.start_round(code, token, "incendio", None)
+    assert rooms.public_state(code)["contagens"] == {"zona": {}, "acao": {}}
+    assert rooms.public_state(code)["historico"][0]["acao"] == "usar_baterias"
