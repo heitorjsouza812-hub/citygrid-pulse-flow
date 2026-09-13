@@ -13,6 +13,29 @@ export interface PlacarCidade {
   satisfacao: number;
   pontuacao_geral: number;
 }
+export interface FeedbackRodada {
+  rodada: number;
+  pontos_base: number;
+  bonus_alinhamento: number;
+  bonus_participacao: number;
+  pontos_rodada: number;
+  pontos_total: number;
+  participacao_pct: number;
+  participantes_completos: number;
+  participantes_elegiveis: number;
+  alinhada_recomendacao: boolean;
+  mensagem: string;
+}
+export interface ProgressaoJogo {
+  pontos_total: number;
+  meta_pontos: number;
+  progresso_pct: number;
+  rodadas_concluidas: number;
+  total_rodadas: number;
+  bonus_alinhamento_total: number;
+  bonus_participacao_total: number;
+  feedback_rodada: FeedbackRodada | null;
+}
 export interface SalaPlateia {
   codigo: string;
   fase: FaseSala;
@@ -36,6 +59,7 @@ export interface SalaPlateia {
   empate: { etapa: "zona" | "acao" | null; opcoes: string[] };
   placar: PlacarCidade;
   placar_antes: PlacarCidade | null;
+  progressao: ProgressaoJogo;
   recomendacao: {
     zona: string;
     acao: string;
@@ -57,6 +81,10 @@ export interface SalaPlateia {
   resumo_final: {
     rodadas: number;
     pontuacao_final: number;
+    pontos_jogo: number;
+    meta_pontos: number;
+    bonus_alinhamento_total: number;
+    bonus_participacao_total: number;
     participantes: number;
     total_votos: number;
     semelhantes_ia: number;
@@ -65,6 +93,21 @@ export interface SalaPlateia {
     rodada_mais_arriscada: number;
     mensagem: string;
   } | null;
+  historico: Array<{
+    rodada: number;
+    evento: TipoEventoPlateia;
+    zona: string;
+    acao: string;
+    pontuacao: number;
+    ganho_rodada: number;
+    semelhante_ia: boolean;
+    risco: number;
+    pontos_jogo: number;
+    bonus_alinhamento: number;
+    bonus_participacao: number;
+    participacao_pct: number;
+    votos_rodada: number;
+  }>;
   dados_sinteticos: boolean;
 }
 export interface SalaCriada extends SalaPlateia {

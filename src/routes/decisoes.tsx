@@ -12,9 +12,11 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import { Download, Brain, Cpu, Zap, Dna } from "lucide-react";
+import { Download } from "lucide-react";
+import { FontesRecomendacao } from "@/components/FontesRecomendacao";
 import { useCityGrid } from "@/lib/citygrid-context";
 import type { Recomendacao } from "@/lib/citygrid-types";
+import { FONTES_RECOMENDACAO, contarAtividadePorFonte } from "@/lib/recommendation-activity";
 import { urgenciaColor } from "@/lib/risco";
 
 export const Route = createFileRoute("/decisoes")({
@@ -36,10 +38,11 @@ const ORIGEM_COLOR: Record<string, string> = {
   xgboost: "var(--risk-med)",
   lstm: "var(--purple-elec)",
   genetico: "var(--risk-low)",
+  mistral3b: "var(--primary)",
 };
 
 function DecisoesPage() {
-  const { recomendacoes, zonas } = useCityGrid();
+  const { recomendacoes, zonas, stats } = useCityGrid();
   const [fUrg, setFUrg] = useState<string>("todos");
   const [fOri, setFOri] = useState<string>("todos");
   const [fZona, setFZona] = useState<string>("todos");
@@ -56,12 +59,13 @@ function DecisoesPage() {
   );
 
   const porOrigem = useMemo(() => {
-    const m: Record<string, number> = { heuristica: 0, xgboost: 0, lstm: 0, genetico: 0 };
-    recomendacoes.forEach((a) => {
-      m[a.origem]++;
-    });
-    return Object.entries(m).map(([name, value]) => ({ name, value }));
-  }, [recomendacoes]);
+    const contagens = contarAtividadePorFonte(recomendacoes, stats.ciclo);
+    return FONTES_RECOMENDACAO.map((fonte) => ({
+      name: fonte.id,
+      label: fonte.label,
+      value: contagens[fonte.id],
+    }));
+  }, [recomendacoes, stats.ciclo]);
 
   const porZona = useMemo(() => {
     const m: Record<string, number> = {};
@@ -107,33 +111,7 @@ function DecisoesPage() {
         </p>
       </div>
 
-      {/* Stats */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard
-          icon={<Zap className="h-4 w-4" />}
-          label="Heurística"
-          valor={porOrigem.find((p) => p.name === "heuristica")?.value ?? 0}
-          color="var(--cyan-elec)"
-        />
-        <StatCard
-          icon={<Cpu className="h-4 w-4" />}
-          label="XGBoost"
-          valor={porOrigem.find((p) => p.name === "xgboost")?.value ?? 0}
-          color="var(--risk-med)"
-        />
-        <StatCard
-          icon={<Brain className="h-4 w-4" />}
-          label="LSTM"
-          valor={porOrigem.find((p) => p.name === "lstm")?.value ?? 0}
-          color="var(--purple-elec)"
-        />
-        <StatCard
-          icon={<Dna className="h-4 w-4" />}
-          label="Genético"
-          valor={porOrigem.find((p) => p.name === "genetico")?.value ?? 0}
-          color="var(--risk-low)"
-        />
-      </section>
+      <FontesRecomendacao recomendacoes={recomendacoes} ciclo={stats.ciclo} />
 
       {/* Gráficos */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -142,13 +120,15 @@ function DecisoesPage() {
             className="absolute inset-x-0 top-0 h-px"
             style={{ background: "var(--gradient-accent)" }}
           />
-          <h3 className="font-display font-bold text-sm mb-3">Distribuição por Origem</h3>
+          <h3 className="font-display font-bold text-sm mb-3">
+            Atividade sintética acumulada por fonte
+          </h3>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
                 data={porOrigem}
                 dataKey="value"
-                nameKey="name"
+                nameKey="label"
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
@@ -225,6 +205,7 @@ function DecisoesPage() {
               { v: "xgboost", l: "XGBoost" },
               { v: "lstm", l: "LSTM" },
               { v: "genetico", l: "Genético" },
+              { v: "mistral3b", l: "Mistral 3B · POC experimental" },
             ]}
           />
           <Filtro
@@ -332,37 +313,6 @@ function Filtro({
         ))}
       </select>
     </label>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  valor,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  valor: number;
-  color: string;
-}) {
-  return (
-    <div className="card-surface p-4">
-      <div
-        className="absolute inset-x-0 top-0 h-px"
-        style={{ background: "var(--gradient-accent)" }}
-      />
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-display font-bold">
-          {label}
-        </span>
-        <span style={{ color }}>{icon}</span>
-      </div>
-      <div className="font-mono text-3xl font-bold" style={{ color }}>
-        {valor}
-      </div>
-      <div className="text-[11px] text-muted-foreground mt-1">recomendações registradas</div>
-    </div>
   );
 }
 

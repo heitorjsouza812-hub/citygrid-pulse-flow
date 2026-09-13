@@ -9,6 +9,7 @@ import {
   ResumoFinal,
 } from "@/components/audiencia/ResultadoSala";
 import { PlacarCidade } from "@/components/audiencia/PlacarCidade";
+import { ProgressoJogo } from "@/components/audiencia/ProgressoJogo";
 import { audienceApi } from "@/lib/audience-api";
 import type { TipoEventoPlateia } from "@/lib/audience-types";
 import { useSala } from "@/lib/use-sala";
@@ -241,6 +242,7 @@ function Apresentador() {
         </div>
         <aside>
           <PlacarCidade placar={sala.placar} />
+          <ProgressoJogo progressao={sala.progressao} />
           <section className="audience-control">
             <p>CONTROLE DO APRESENTADOR</p>
             <b>{total} votos registrados</b>
@@ -314,7 +316,7 @@ function Apresentador() {
                   disabled={busy}
                   onClick={() => void action(() => audienceApi.reveal(code, token))}
                 >
-                  Revelar Plateia × IA
+                  Revelar comparação documentada
                 </button>
               )}
             {sala.fase === "RESULTADO" && (

@@ -27,6 +27,7 @@ import type {
   TipoCenario,
   Zona,
 } from "./citygrid-types";
+import { mesclarHistoricoRecomendacoes } from "./recommendation-activity";
 
 const STATS_VAZIAS: Stats = {
   consumo_total_mw: 0,
@@ -80,7 +81,9 @@ export function CityGridProvider({ children }: { children: ReactNode }) {
     }) => {
       setZonas(estado.zonas);
       setStats(estado.stats);
-      setRecomendacoes(estado.recomendacoes);
+      setRecomendacoes((anteriores) =>
+        mesclarHistoricoRecomendacoes(anteriores, estado.recomendacoes),
+      );
       setTimestampSimulado(estado.timestampSimulado);
       setSnapshots((anteriores) => {
         const ultimo = anteriores.at(-1);
